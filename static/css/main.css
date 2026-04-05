@@ -428,3 +428,316 @@ main {
 .htmx-request .htmx-indicator.chart-loading {
     display: block;
 }
+
+/* ==========================================================================
+   Analysis Section Styles
+   ========================================================================== */
+
+/* Analysis Section Container */
+.analysis-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.analysis-section h3 {
+    margin: 0 0 1rem 0;
+    color: #1a1a2e;
+    font-size: 1.25rem;
+}
+
+/* Tab Navigation */
+.analysis-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 0;
+}
+
+.tab-button {
+    padding: 0.75rem 1.25rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.2s ease;
+    border-radius: 4px 4px 0 0;
+}
+
+.tab-button:hover {
+    color: #1a1a2e;
+    background: rgba(67, 97, 238, 0.05);
+}
+
+.tab-button.active {
+    color: #4361ee;
+    border-bottom-color: #4361ee;
+    background: rgba(67, 97, 238, 0.08);
+}
+
+/* Tab Panels */
+.tab-panel {
+    padding: 1rem 0;
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
+
+/* Analysis Tables */
+.analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+}
+
+.analysis-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border-bottom: 2px solid #e0e0e0;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+}
+
+.analysis-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.analysis-table tbody tr:hover {
+    background: rgba(67, 97, 238, 0.03);
+}
+
+/* Table-specific styles */
+.planets-table th:nth-child(1) { width: 120px; }
+.planets-table th:nth-child(2) { width: 100px; }
+.planets-table th:nth-child(3) { width: 120px; }
+.planets-table th:nth-child(4) { width: 150px; }
+
+.houses-table th:nth-child(1) { width: 80px; }
+.houses-table th:nth-child(2) { width: 120px; }
+.houses-table th:nth-child(3) { width: 100px; }
+.houses-table th:nth-child(4) { width: 150px; }
+
+.aspects-table th:nth-child(1) { width: 100px; }
+.aspects-table th:nth-child(2) { width: 150px; }
+.aspects-table th:nth-child(3) { width: 80px; }
+.aspects-table th:nth-child(4) { width: 150px; }
+
+/* Planet Table Styles */
+.planet-name {
+    font-weight: 500;
+    color: #1a1a2e;
+}
+
+.planet-symbol {
+    margin-right: 0.5rem;
+    font-size: 1.1em;
+}
+
+.planet-sign {
+    color: #555;
+}
+
+.sign-symbol {
+    margin-right: 0.25rem;
+}
+
+.planet-position {
+    font-weight: 500;
+}
+
+.retrograde-indicator {
+    color: #dc2626;
+    font-size: 1.1em;
+    margin-right: 0.25rem;
+    font-weight: bold;
+}
+
+/* House Table Styles */
+.house-number {
+    font-weight: 600;
+    color: #1a1a2e;
+    text-align: center;
+    width: 60px;
+}
+
+.house-sign {
+    color: #555;
+}
+
+.house-degree {
+    font-weight: 500;
+}
+
+/* Aspect Table Styles */
+.aspect-type {
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.aspect-symbol {
+    margin-right: 0.5rem;
+    font-size: 1.1em;
+}
+
+.aspect-planets {
+    color: #555;
+}
+
+.aspect-orb {
+    font-weight: 500;
+    color: #333;
+}
+
+/* Hover Reveal Columns */
+.hover-col {
+    color: #999;
+    font-size: 0.875rem;
+    text-align: right;
+}
+
+/* Hover Reveal Technical Details */
+.hover-reveal {
+    position: relative;
+}
+
+.detail-extra {
+    text-align: right;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+    font-size: 0.875rem;
+    color: #888;
+}
+
+.detail-row:hover .detail-extra {
+    opacity: 1;
+    color: #555;
+}
+
+.technical-details {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.125rem;
+}
+
+.degree-minutes,
+.degree-seconds {
+    font-size: 0.85em;
+    color: #999;
+}
+
+.degree-minutes::before {
+    content: '';
+}
+
+.degree-seconds::before {
+    content: '';
+}
+
+.speed-info {
+    font-size: 0.8em;
+    color: #888;
+    font-style: italic;
+}
+
+.ruler-info {
+    font-size: 0.8em;
+    color: #888;
+    font-style: italic;
+}
+
+.application-info {
+    font-size: 0.8em;
+    color: #888;
+}
+
+/* No Data Message */
+.no-data-message {
+    text-align: center;
+    padding: 2rem;
+    color: #888;
+    font-style: italic;
+}
+
+/* Analysis Error State */
+.analysis-error {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+}
+
+.analysis-error .alert-warning {
+    margin: 0;
+    padding: 1rem;
+    background: transparent;
+    border: none;
+}
+
+/* Analysis Unavailable */
+.analysis-unavailable {
+    background: #f9f9f9;
+}
+
+/* Analysis Notes */
+.analysis-notes {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.note-item {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+}
+
+.note-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.note-value {
+    color: #333;
+}
+
+.note-value.void-of-course {
+    color: #d97706;
+    font-weight: 500;
+}
+
+/* Responsive Table Styles */
+@media (max-width: 768px) {
+    .analysis-table {
+        font-size: 0.875rem;
+    }
+    
+    .analysis-table th,
+    .analysis-table td {
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .analysis-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .hover-col {
+        display: none;
+    }
+}

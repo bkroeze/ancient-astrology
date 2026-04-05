@@ -64,6 +64,254 @@
                 </dl>
             </div>
             {% endif %}
+            
+            {# Analysis Section - displays planets, houses, and aspects #}
+            {% if analysis %}
+            <div class="analysis-section" id="analysis-section">
+                <h3>Chart Analysis</h3>
+                
+                {# Tab navigation #}
+                <div class="analysis-tabs" role="tablist">
+                    <button 
+                        class="tab-button active" 
+                        data-tab="planets"
+                        role="tab"
+                        aria-selected="true"
+                        aria-controls="planets-tab"
+                    >
+                        ☌ Planets
+                    </button>
+                    <button 
+                        class="tab-button" 
+                        data-tab="houses"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="houses-tab"
+                    >
+                        ⚱ Houses
+                    </button>
+                    <button 
+                        class="tab-button" 
+                        data-tab="aspects"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="aspects-tab"
+                    >
+                        ✺ Aspects
+                    </button>
+                </div>
+                
+                {# Planets Tab #}
+                <div class="tab-panel active" id="planets-tab" role="tabpanel">
+                    {% if analysis.planets %}
+                    <table class="analysis-table planets-table">
+                        <thead>
+                            <tr>
+                                <th>Planet</th>
+                                <th>Sign</th>
+                                <th>Position</th>
+                                <th class="hover-col">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for planet in analysis.planets %}
+                            <tr class="detail-row hover-reveal">
+                                <td class="planet-name">
+                                    <span class="planet-symbol">{{ planet.symbol|default:"☉" }}</span>
+                                    {{ planet.name }}
+                                </td>
+                                <td class="planet-sign">
+                                    <span class="sign-symbol">{{ planet.sign_symbol|default:"" }}</span>
+                                    {{ planet.sign }}
+                                </td>
+                                <td class="planet-position">
+                                    {% if planet.retrograde %}
+                                    <span class="retrograde-indicator" title="Retrograde">↺</span>
+                                    {% endif %}
+                                    {{ planet.sign_degree|floatformat:0 }}°{{ planet.sign }}
+                                </td>
+                                <td class="detail-extra hover-col">
+                                    <span class="technical-details">
+                                        {{ planet.sign_degree|floatformat:2 }}° 
+                                        <span class="degree-minutes">{{ planet.minutes|default:"00" }}′</span>
+                                        <span class="degree-seconds">{{ planet.seconds|default:"00" }}″</span>
+                                        {% if planet.speed %}
+                                        <span class="speed-info">
+                                            Speed: {{ planet.speed|floatformat:3 }}°/day
+                                        </span>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="no-data-message">No planet data available.</p>
+                    {% endif %}
+                </div>
+                
+                {# Houses Tab #}
+                <div class="tab-panel" id="houses-tab" role="tabpanel" hidden>
+                    {% if analysis.houses.cusps %}
+                    <table class="analysis-table houses-table">
+                        <thead>
+                            <tr>
+                                <th>House</th>
+                                <th>Sign on Cusp</th>
+                                <th>Cusp Degree</th>
+                                <th class="hover-col">Technical</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cusp in analysis.houses.cusps %}
+                            <tr class="detail-row hover-reveal">
+                                <td class="house-number">{{ forloop.counter }}</td>
+                                <td class="house-sign">
+                                    <span class="sign-symbol">{{ cusp.sign_symbol|default:"" }}</span>
+                                    {{ cusp.sign|default:"Unknown" }}
+                                </td>
+                                <td class="house-degree">
+                                    {{ cusp.degree|floatformat:0 }}°
+                                </td>
+                                <td class="detail-extra hover-col">
+                                    <span class="technical-details">
+                                        {{ cusp.degree|floatformat:2 }}°
+                                        <span class="degree-minutes">{{ cusp.minutes|default:"00" }}′</span>
+                                        <span class="degree-seconds">{{ cusp.seconds|default:"00" }}″</span>
+                                        {% if cusp.ruler %}
+                                        <span class="ruler-info">
+                                            Ruler: {{ cusp.ruler }}
+                                        </span>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="no-data-message">No house data available.</p>
+                    {% endif %}
+                </div>
+                
+                {# Aspects Tab #}
+                <div class="tab-panel" id="aspects-tab" role="tabpanel" hidden>
+                    {% if analysis.aspects %}
+                    <table class="analysis-table aspects-table">
+                        <thead>
+                            <tr>
+                                <th>Aspect</th>
+                                <th>Planets</th>
+                                <th>Orb</th>
+                                <th class="hover-col">Technical</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for aspect in analysis.aspects %}
+                            <tr class="detail-row hover-reveal">
+                                <td class="aspect-type">
+                                    <span class="aspect-symbol">{{ aspect.symbol|default:"✧" }}</span>
+                                    {{ aspect.type }}
+                                </td>
+                                <td class="aspect-planets">
+                                    {{ aspect.planet1 }} – {{ aspect.planet2 }}
+                                </td>
+                                <td class="aspect-orb">
+                                    {% if aspect.orb %}
+                                    {{ aspect.orb|floatformat:2 }}°
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                                <td class="detail-extra hover-col">
+                                    <span class="technical-details">
+                                        {% if aspect.exact_degree %}
+                                        Exact: {{ aspect.exact_degree|floatformat:4 }}°
+                                        {% endif %}
+                                        {% if aspect.orb %}
+                                        Orb: {{ aspect.orb|floatformat:3 }}°
+                                        {% endif %}
+                                        {% if aspect.application %}
+                                        <span class="application-info">
+                                            {{ aspect.application }}
+                                        </span>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="no-data-message">No aspect data available.</p>
+                    {% endif %}
+                    
+                    {# Additional Analysis Info #}
+                    {% if analysis.grand_trines or analysis.moon_void_of_course %}
+                    <div class="analysis-notes">
+                        {% if analysis.grand_trines %}
+                        <div class="note-item">
+                            <span class="note-label">Grand Trines:</span>
+                            {% for trine in analysis.grand_trines %}
+                            <span class="note-value">{{ trine }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if analysis.moon_void_of_course %}
+                        <div class="note-item">
+                            <span class="note-label">Moon:</span>
+                            <span class="note-value {% if analysis.moon_void_of_course %}void-of-course{% endif %}">
+                                {% if analysis.moon_void_of_course %}Void of Course{% else %}Not void{% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {# JavaScript for tab switching #}
+            <script>
+            (function() {
+                // Tab switching logic
+                const tabButtons = document.querySelectorAll('.analysis-section .tab-button');
+                const tabPanels = document.querySelectorAll('.analysis-section .tab-panel');
+                
+                tabButtons.forEach(function(button) {
+                    button.addEventListener('click', function() {
+                        const targetTab = this.getAttribute('data-tab');
+                        
+                        // Update button states
+                        tabButtons.forEach(function(btn) {
+                            btn.classList.remove('active');
+                            btn.setAttribute('aria-selected', 'false');
+                        });
+                        this.classList.add('active');
+                        this.setAttribute('aria-selected', 'true');
+                        
+                        // Update panel visibility
+                        tabPanels.forEach(function(panel) {
+                            const panelId = panel.id.replace('-tab', '');
+                            if (panelId === targetTab) {
+                                panel.hidden = false;
+                                panel.classList.add('active');
+                            } else {
+                                panel.hidden = true;
+                                panel.classList.remove('active');
+                            }
+                        });
+                    });
+                });
+            })();
+            </script>
+            {% elif analysis_error %}
+            <div class="analysis-section analysis-error">
+                <p class="alert alert-warning">
+                    Chart analysis is currently unavailable: {{ analysis_error }}
+                </p>
+            </div>
+            {% endif %}
         {% else %}
             <div class="alert alert-info">
                 <p>No chart data available.</p>

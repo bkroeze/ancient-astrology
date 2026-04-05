@@ -1782,3 +1782,413 @@ class ChartViewAnalysisTest(TestCase):
         self.assertIn('analysis', response.context)
         self.assertEqual(response.context['analysis'], analysis_data)
 
+
+# =============================================================================
+# ANALYSIS DISPLAY TESTS
+# =============================================================================
+
+from django.template.loader import render_to_string
+from django.test import RequestFactory, override_settings
+
+
+class AnalysisDisplayTest(TestCase):
+    """Tests for the analysis display templates and functionality."""
+
+    def setUp(self):
+        """Set up test users and client."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
+            created_by=self.user
+        )
+        self.natal_set = NatalSet.objects.create(
+            name='My Chart',
+            owner=self.user,
+            birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
+            place=self.place,
+            permission=NatalSet.Permission.PRIVATE
+        )
+        # Sample analysis data for testing
+        self.analysis_data = {
+            'planets': [
+                {
+                    'name': 'Sun',
+                    'sign': 'Cancer',
+                    'sign_symbol': '☋',
+                    'symbol': '☉',
+                    'sign_degree': 23.5,
+                    'minutes': '45',
+                    'seconds': '30',
+                    'speed': 0.982,
+                    'retrograde': False
+                },
+                {
+                    'name': 'Moon',
+                    'sign': 'Taurus',
+                    'sign_symbol': '♉',
+                    'symbol': '☽',
+                    'sign_degree': 12.3,
+                    'minutes': '18',
+                    'seconds': '00',
+                    'speed': 12.456,
+                    'retrograde': False
+                },
+                {
+                    'name': 'Saturn',
+                    'sign': 'Capricorn',
+                    'sign_symbol': '♑',
+                    'symbol': '♄',
+                    'sign_degree': 5.8,
+                    'minutes': '48',
+                    'seconds': '12',
+                    'speed': -0.052,
+                    'retrograde': True
+                },
+            ],
+            'houses': {
+                'cusps': [
+                    {'degree': 15.2, 'sign': 'Aries', 'sign_symbol': '♈', 'minutes': '12', 'seconds': '00', 'ruler': 'Mars'},
+                    {'degree': 8.4, 'sign': 'Taurus', 'sign_symbol': '♉', 'minutes': '24', 'seconds': '00', 'ruler': 'Venus'},
+                    {'degree': 3.7, 'sign': 'Gemini', 'sign_symbol': '♊', 'minutes': '42', 'seconds': '00', 'ruler': 'Mercury'},
+                    {'degree': 27.1, 'sign': 'Cancer', 'sign_symbol': '☋', 'minutes': '06', 'seconds': '00', 'ruler': 'Moon'},
+                    {'degree': 22.8, 'sign': 'Leo', 'sign_symbol': '♌', 'minutes': '48', 'seconds': '00', 'ruler': 'Sun'},
+                    {'degree': 18.5, 'sign': 'Virgo', 'sign_symbol': '♍', 'minutes': '30', 'seconds': '00', 'ruler': 'Mercury'},
+                    {'degree': 15.2, 'sign': 'Libra', 'sign_symbol': '♎', 'minutes': '12', 'seconds': '00', 'ruler': 'Venus'},
+                    {'degree': 8.4, 'sign': 'Scorpio', 'sign_symbol': '♏', 'minutes': '24', 'seconds': '00', 'ruler': 'Mars'},
+                    {'degree': 3.7, 'sign': 'Sagittarius', 'sign_symbol': '♐', 'minutes': '42', 'seconds': '00', 'ruler': 'Jupiter'},
+                    {'degree': 27.1, 'sign': 'Capricorn', 'sign_symbol': '♑', 'minutes': '06', 'seconds': '00', 'ruler': 'Saturn'},
+                    {'degree': 22.8, 'sign': 'Aquarius', 'sign_symbol': '♒', 'minutes': '48', 'seconds': '00', 'ruler': 'Saturn'},
+                    {'degree': 18.5, 'sign': 'Pisces', 'sign_symbol': '♓', 'minutes': '30', 'seconds': '00', 'ruler': 'Jupiter'},
+                ]
+            },
+            'aspects': [
+                {'planet1': 'Sun', 'planet2': 'Moon', 'type': 'trine', 'symbol': '△', 'orb': 0.52, 'exact_degree': 89.48, 'application': 'Applying'},
+                {'planet1': 'Sun', 'planet2': 'Saturn', 'type': 'square', 'symbol': '□', 'orb': 1.30, 'exact_degree': 92.30, 'application': 'Separating'},
+                {'planet1': 'Moon', 'planet2': 'Saturn', 'type': 'sextile', 'symbol': '✱', 'orb': 0.15, 'exact_degree': 60.15, 'application': 'Exact'},
+            ],
+            'grand_trines': ['Fire Trine', 'Water Trine'],
+            'moon_void_of_course': False,
+            'metadata': {
+                'latitude': 40.7128,
+                'longitude': -74.0060,
+                'house_system': 'Placidus'
+            }
+        }
+
+    def test_analysis_template_renders_with_data(self):
+        """Analysis template renders correctly with full analysis data."""
+        html = render_to_string('natal/analysis.html', {
+            'analysis': self.analysis_data
+        })
+        
+        # Check main structure
+        self.assertIn('analysis-section', html)
+        self.assertIn('Chart Analysis', html)
+        
+        # Check tabs are present
+        self.assertIn('data-tab="planets"', html)
+        self.assertIn('data-tab="houses"', html)
+        self.assertIn('data-tab="aspects"', html)
+        
+        # Check planets tab content
+        self.assertIn('Sun', html)
+        self.assertIn('Moon', html)
+        self.assertIn('Saturn', html)
+        self.assertIn('Cancer', html)  # Sun's sign
+        self.assertIn('Taurus', html)  # Moon's sign
+        
+        # Check retrograde indicator is present
+        self.assertIn('retrograde-indicator', html)
+        self.assertIn('↺', html)
+        
+        # Check aspects tab content
+        self.assertIn('trine', html)
+        self.assertIn('square', html)
+        self.assertIn('Sun – Moon', html)
+
+    def test_analysis_template_handles_missing_analysis(self):
+        """Analysis template handles missing analysis data gracefully."""
+        html = render_to_string('natal/analysis.html', {})
+        
+        # Should show "No analysis data available" message
+        self.assertIn('No analysis data available', html)
+        self.assertIn('analysis-unavailable', html)
+
+    def test_analysis_template_handles_analysis_error(self):
+        """Analysis template handles analysis_error gracefully."""
+        html = render_to_string('natal/analysis.html', {
+            'analysis_error': 'API timeout'
+        })
+        
+        # Should show error message
+        self.assertIn('Chart analysis is currently unavailable', html)
+        self.assertIn('API timeout', html)
+        self.assertIn('analysis-error', html)
+
+    def test_analysis_template_handles_empty_planets(self):
+        """Analysis template handles empty planets array."""
+        data = self.analysis_data.copy()
+        data['planets'] = []
+        
+        html = render_to_string('natal/analysis.html', {'analysis': data})
+        
+        # Should show "No planet data available" message
+        self.assertIn('No planet data available', html)
+
+    def test_analysis_template_handles_empty_houses(self):
+        """Analysis template handles missing house cusps."""
+        data = self.analysis_data.copy()
+        data['houses'] = {'cusps': []}
+        
+        html = render_to_string('natal/analysis.html', {'analysis': data})
+        
+        # Should show "No house data available" message
+        self.assertIn('No house data available', html)
+
+    def test_analysis_template_handles_empty_aspects(self):
+        """Analysis template handles empty aspects array."""
+        data = self.analysis_data.copy()
+        data['aspects'] = []
+        
+        html = render_to_string('natal/analysis.html', {'analysis': data})
+        
+        # Should show "No aspect data available" message
+        self.assertIn('No aspect data available', html)
+
+    def test_planets_table_shows_sign_degree_and_retrograde(self):
+        """Verify planets table displays sign, degree, and retrograde status."""
+        html = render_to_string('natal/analysis.html', {
+            'analysis': self.analysis_data
+        })
+        
+        # Check for planet positions with degree (floatformat:0 rounds 23.5 to 24)
+        self.assertIn('24°Cancer', html)  # Sun's position (23.5 rounds to 24)
+        
+        # Check for retrograde Saturn
+        self.assertIn('↺', html)
+        self.assertIn('Capricorn', html)  # Saturn's sign
+
+    def test_houses_table_shows_cusp_number_and_sign(self):
+        """Verify houses table displays house number and cusp sign."""
+        html = render_to_string('natal/analysis.html', {
+            'analysis': self.analysis_data
+        })
+        
+        # Check for house numbers (1-12)
+        for i in range(1, 13):
+            self.assertIn(f'<td class="house-number">{i}</td>', html)
+        
+        # Check for signs
+        self.assertIn('Aries', html)  # 1st house cusp
+        self.assertIn('Libra', html)  # 7th house cusp
+
+    def test_aspects_table_shows_type_planets_and_orb(self):
+        """Verify aspects table displays aspect type, planets, and orb."""
+        html = render_to_string('natal/analysis.html', {
+            'analysis': self.analysis_data
+        })
+        
+        # Check aspect types
+        self.assertIn('trine', html)
+        self.assertIn('square', html)
+        self.assertIn('sextile', html)
+        
+        # Check planets involved
+        self.assertIn('Sun – Moon', html)
+        
+        # Check orb values
+        self.assertIn('0.52°', html)  # Sun-Moon trine orb
+
+    def test_hover_css_classes_present(self):
+        """Verify hover reveal CSS classes are present in template."""
+        html = render_to_string('natal/analysis.html', {
+            'analysis': self.analysis_data
+        })
+        
+        # Check hover reveal classes
+        self.assertIn('hover-reveal', html)
+        self.assertIn('detail-extra', html)
+        self.assertIn('technical-details', html)
+        self.assertIn('degree-minutes', html)
+        self.assertIn('degree-seconds', html)
+        self.assertIn('speed-info', html)
+
+    def test_long_planet_names_dont_break_layout(self):
+        """Long planet names should not break table layout."""
+        data = self.analysis_data.copy()
+        data['planets'] = [
+            {
+                'name': 'VeryLongPlanetNameThatShouldNotBreakLayout',
+                'sign': 'Cancer',
+                'sign_symbol': '☋',
+                'symbol': '☉',
+                'sign_degree': 23.5,
+                'minutes': '45',
+                'seconds': '30',
+                'speed': 0.982,
+                'retrograde': False
+            }
+        ]
+        
+        html = render_to_string('natal/analysis.html', {'analysis': data})
+        
+        # Should render without errors
+        self.assertIn('VeryLongPlanetNameThatShouldNotBreakLayout', html)
+        self.assertIn('analysis-section', html)
+
+    def test_moon_void_of_course_displayed_when_true(self):
+        """Moon void of course status is displayed in aspects tab when true."""
+        data = self.analysis_data.copy()
+        data['moon_void_of_course'] = True
+        
+        html = render_to_string('natal/analysis.html', {'analysis': data})
+        
+        # Should show void of course info
+        self.assertIn('Moon:', html)
+        self.assertIn('Void of Course', html)
+
+    def test_moon_void_of_course_not_shown_when_false(self):
+        """Moon void of course note is not shown when moon is not void of course."""
+        data = self.analysis_data.copy()
+        data['moon_void_of_course'] = False
+        data['grand_trines'] = []  # Remove grand trines too
+        
+        html = render_to_string('natal/analysis.html', {'analysis': data})
+        
+        # Should not show moon notes section when moon is not void
+        self.assertNotIn('Moon:', html)
+        self.assertNotIn('Void of Course', html)
+
+    def test_chart_template_includes_analysis_section(self):
+        """Chart template includes analysis section after chart display."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            mock_analysis.return_value = self.analysis_data
+            
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        
+        # Chart template should include analysis
+        self.assertIn('analysis-section', html)
+        self.assertIn('Chart Analysis', html)
+        
+        # Tabs should be present
+        self.assertIn('tab-button', html)
+        self.assertIn('tab-panel', html)
+
+    def test_chart_view_renders_analysis_with_chart_data(self):
+        """Chart view renders analysis data alongside chart."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            mock_analysis.return_value = self.analysis_data
+            
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        
+        # Should show planet data
+        self.assertIn('Sun', html)
+        self.assertIn('Moon', html)
+        self.assertIn('Cancer', html)
+        
+        # Should show aspect data
+        self.assertIn('trine', html)
+        self.assertIn('Sun – Moon', html)
+
+
+class AnalysisDisplayCSSTest(TestCase):
+    """Tests for analysis display CSS styles."""
+
+    def setUp(self):
+        """Set up test client."""
+        self.client = Client()
+
+    def test_css_file_exists(self):
+        """CSS file for analysis styles should exist."""
+        import os
+        css_path = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'static',
+            'css',
+            'main.css'
+        )
+        self.assertTrue(os.path.exists(css_path), f"CSS file not found at {css_path}")
+
+    def test_css_contains_analysis_section_styles(self):
+        """CSS should contain analysis section styles."""
+        import os
+        css_path = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'static',
+            'css',
+            'main.css'
+        )
+        with open(css_path, 'r') as f:
+            css_content = f.read()
+        
+        # Check for analysis section styles
+        self.assertIn('.analysis-section', css_content)
+        self.assertIn('.analysis-tabs', css_content)
+        self.assertIn('.tab-button', css_content)
+        self.assertIn('.tab-panel', css_content)
+
+    def test_css_contains_hover_styles(self):
+        """CSS should contain hover reveal styles."""
+        import os
+        css_path = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'static',
+            'css',
+            'main.css'
+        )
+        with open(css_path, 'r') as f:
+            css_content = f.read()
+        
+        # Check for hover styles
+        self.assertIn('.hover-reveal', css_content)
+        self.assertIn('.detail-extra', css_content)
+        self.assertIn('.detail-row:hover', css_content)
+
+    def test_css_contains_table_styles(self):
+        """CSS should contain analysis table styles."""
+        import os
+        css_path = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'static',
+            'css',
+            'main.css'
+        )
+        with open(css_path, 'r') as f:
+            css_content = f.read()
+        
+        # Check for table styles
+        self.assertIn('.analysis-table', css_content)
+        self.assertIn('.planets-table', css_content)
+        self.assertIn('.houses-table', css_content)
+        self.assertIn('.aspects-table', css_content)
+
