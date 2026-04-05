@@ -11,6 +11,14 @@ class User(AbstractUser):
     """
     
     email = models.EmailField(unique=True)
+    default_place = models.ForeignKey(
+        "natal.Place",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="default_for_users",
+        help_text="Default birth place for this user"
+    )
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
