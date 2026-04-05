@@ -8,6 +8,20 @@
     <p>Explore the celestial wisdom of the ancients.</p>
 </section>
 
+{% if user.is_authenticated and user.default_place %}
+<section id="chart-of-now-widget">
+    <h2>Chart of Now</h2>
+    <p>Your current celestial configuration at {{ user.default_place.name }}:</p>
+    {% include 'core/chart_of_now.html' %}
+    <button hx-get="{% url 'core:chart_of_now' %}" 
+            hx-target="#chart-of-now-widget"
+            hx-swap="innerHTML"
+            type="button">
+        Refresh Chart
+    </button>
+</section>
+{% endif %}
+
 <section class="htmx-demo">
     <h2>HTMX Integration Demo</h2>
     <p>Click the button below to see HTMX in action with proper CSRF handling:</p>

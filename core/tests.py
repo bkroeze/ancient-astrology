@@ -248,3 +248,151 @@ class ChartOfNowTest(TestCase):
         self.assertContains(response, 'chart-of-now-error')
         self.assertContains(response, 'Chart API is unavailable')
         self.assertNotContains(response, '<svg>')
+
+
+class HomeViewChartOfNowTest(TestCase):
+    """Test chart-of-now integration in home view."""
+
+    def setUp(self):
+        self.client = Client()
+
+    @patch('core.views.generate_chart')
+    def test_home_view_with_chart_for_authenticated_user_with_place(self, mock_generate):
+        """Home view includes chart context for authenticated user with default_place."""
+        from users.models import User
+        from natal.models import Place
+        from decimal import Decimal
+
+        mock_generate.return_value = {'chart': '<svg>test</svg>'}
+
+        user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.7128'),
+            longitude=Decimal('-74.0060'),
+            timezone='America/New_York',
+            created_by=user,
+        )
+        user.default_place = place
+        user.save()
+
+        self.client.login(username='test@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # Chart should be in context and rendered
+        self.assertIn('chart', response.context)
+        self.assertContains(response, 'Chart of Now')
+        self.assertContains(response, 'Refresh Chart')
+        mock_generate.assert_called_once()
+
+    def test_home_view_without_chart_for_user_without_place(self):
+        """Home view does not include chart for authenticated user without default_place."""
+        from users.models import User
+
+        user = User.objects.create_user(
+            username='noplace',
+            email='noplace@example.com',
+            password='testpass123'
+        )
+        self.client.login(username='noplace@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # No chart in context
+        self.assertNotIn('chart', response.context)
+        # Widget section should not appear
+        self.assertNotContains(response, 'Chart of Now')
+        self.assertNotContains(response, 'Refresh Chart')
+
+    def test_home_view_without_chart_for_unauthenticated_user(self):
+        """Home view does not include chart for anonymous users."""
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # No chart in context
+        self.assertNotIn('chart', response.context)
+        # Widget section should not appear
+        self.assertNotContains(response, 'Chart of Now')
+        self.assertNotContains(response, 'Refresh Chart')
+
+    @patch('core.views.generate_chart')
+    def test_home_view_chart_error_handled_gracefully(self, mock_generate):
+        """Home view handles chart generation errors gracefully."""
+        from users.models import User
+        from natal.models import Place
+        from decimal import Decimal
+        from natal.clients import ChartAPIError
+
+        mock_generate.side_effect = ChartAPIError(
+            message="Chart API is unavailable",
+            status_code=503
+        )
+
+        user = User.objects.create_user(
+            username='erroruser',
+            email='error@example.com',
+            password='testpass123'
+        )
+        place = Place.objects.create(
+            name='London',
+            latitude=Decimal('51.5074'),
+            longitude=Decimal('-0.1278'),
+            timezone='Europe/London',
+            created_by=user,
+        )
+        user.default_place = place
+        user.save()
+
+        self.client.login(username='error@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # Error should be in context as chart_error
+        # ChartAPIError's __str__ includes status code: "ChartAPIError(503): Chart API is unavailable"
+        self.assertIn('chart_error', response.context)
+        self.assertIn("Chart API is unavailable", response.context['chart_error'])
+
+    def test_home_view_includes_chart_of_now_js(self):
+        """Home page includes the chart-of-now.js script."""
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'chart-of-now.js')
+
+    @patch('core.views.generate_chart')
+    def test_home_view_chart_refresh_button_works(self, mock_generate):
+        """Home view has working HTMX refresh button for chart."""
+        from users.models import User
+        from natal.models import Place
+        from decimal import Decimal
+
+        mock_generate.return_value = {'chart': '<svg>test</svg>'}
+
+        user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.7128'),
+            longitude=Decimal('-74.0060'),
+            timezone='America/New_York',
+            created_by=user,
+        )
+        user.default_place = place
+        user.save()
+
+        self.client.login(username='test@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # HTMX attributes should be on the refresh button (Django renders URL tags to actual paths)
+        self.assertContains(response, 'hx-get="/chart-of-now/"')
+        self.assertContains(response, 'hx-target="#chart-of-now-widget"')
+        self.assertContains(response, 'hx-swap="innerHTML"')

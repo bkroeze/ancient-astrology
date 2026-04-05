@@ -7,7 +7,21 @@ from natal.clients import ChartRequest, ChartAPIError, generate_chart
 
 def home(request):
     """Home page view."""
-    return render(request, 'core/home.html')
+    context = {}
+    if request.user.is_authenticated and request.user.default_place:
+        try:
+            place = request.user.default_place
+            chart_request = ChartRequest(
+                latitude=float(place.latitude),
+                longitude=float(place.longitude),
+                datetime=timezone.now(),
+                format='svg'
+            )
+            chart = generate_chart(chart_request)
+            context['chart'] = chart
+        except ChartAPIError as e:
+            context['chart_error'] = str(e)
+    return render(request, 'core/home.html', context)
 
 
 def htmx_partial(request):
