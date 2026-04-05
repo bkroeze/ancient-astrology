@@ -1,0 +1,36 @@
+{% load static %}
+
+{# Partial template for displaying chart-of-now widget via HTMX #}
+{# This template is loaded into the home page and refreshed by JavaScript #}
+
+{% if error %}
+    <div class="chart-of-now-error">
+        <h4>⚠ Chart Unavailable</h4>
+        <p>{{ error }}</p>
+        <p class="error-hint">
+            If the Astro Clock server is not running, please start it with:
+        </p>
+        <code>cd astro-clock && cargo run</code>
+    </div>
+{% elif chart %}
+    <div class="chart-of-now-display">
+        {% if chart.chart %}
+            {# SVG chart from Astro Clock API #}
+            <div class="chart-svg">
+                {{ chart.chart|safe }}
+            </div>
+        {% elif chart.image %}
+            {# Base64 encoded image #}
+            <img src="{{ chart.image }}" alt="Chart of Now" class="chart-image" />
+        {% else %}
+            {# Raw chart data for debugging #}
+            <div class="chart-data">
+                <pre>{{ chart|pprint }}</pre>
+            </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="chart-of-now-loading">
+        <p>Loading chart...</p>
+    </div>
+{% endif %}

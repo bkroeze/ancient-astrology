@@ -1,5 +1,8 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.utils import timezone
+
+from natal.clients import ChartRequest, ChartAPIError, generate_chart
 
 
 def home(request):
@@ -30,3 +33,34 @@ def htmx_partial(request):
         '<html><body><div class="htmx-result">Non-HTMX fallback</div></body></html>',
         content_type='text/html'
     )
+
+
+def chart_of_now(request):
+    """
+    HTMX endpoint for rendering the chart-of-now widget.
+
+    This view generates a chart for the current moment at the user's
+    default location. It is called by the home page on load and by
+    JavaScript on idle-timeout to refresh the chart.
+    """
+    context = {}
+
+    # User must be authenticated and have a default place set
+    if not request.user.is_authenticated or request.user.default_place is None:
+        return render(request, 'core/chart_of_now.html', context, content_type='text/html')
+
+    place = request.user.default_place
+    chart_request = ChartRequest(
+        latitude=float(place.latitude),
+        longitude=float(place.longitude),
+        datetime=timezone.now(),
+        format='svg',
+    )
+
+    try:
+        chart = generate_chart(chart_request)
+        context['chart'] = chart
+    except ChartAPIError as e:
+        context['error'] = str(e)
+
+    return render(request, 'core/chart_of_now.html', context, content_type='text/html')
