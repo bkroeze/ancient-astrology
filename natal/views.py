@@ -12,6 +12,11 @@ from django.views.generic import (
     UpdateView,
 )
 
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+
 from .forms import NatalSetCreateForm, NatalSetForm
 from .models import NatalSet
 
@@ -330,3 +335,97 @@ class ChartView(LoginRequiredMixin, DetailView):
             context['analysis_error'] = str(e)
         
         return self.render_to_response(context)
+
+
+class ChartExportAPIView(APIView):
+    """
+    API endpoint for exporting natal charts as SVG or PNG.
+    
+    GET /api/v1/charts/<natal_set_id>/
+    
+    Query Parameters:
+        format: Output format ('svg' or 'png'), defaults to 'svg'
+    
+    Responses:
+        200: Chart image data with appropriate Content-Type
+        400: Invalid format parameter
+        401: Authentication required
+        403: Permission denied (user cannot view this natal set)
+        404: Natal set not found
+        500: Chart generation failed
+        504: Chart generation timed out
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_scope = 'export'
+    
+    def get(self, request, pk):
+        """Handle GET request for chart export."""
+        from django.http import Http404
+        from rest_framework.response import Response
+        
+        from .clients import ChartAPIError, ChartTimeoutError, ChartRequest, generate_chart
+        
+        # Get natal set and check existence
+        try:
+            natal_set = NatalSet.objects.select_related('place').get(pk=pk)
+        except NatalSet.DoesNotExist:
+            return Response(
+                {'error': 'Natal set not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check permission
+        if not natal_set.can_view(request.user):
+            return Response(
+                {'error': 'You do not have permission to view this natal set'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Validate format parameter
+        format_param = request.query_params.get('format', 'svg').lower()
+        if format_param not in ('svg', 'png'):
+            return Response(
+                {'error': f"Invalid format '{format_param}'. Must be 'svg' or 'png'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Build chart request
+        chart_request = ChartRequest(
+            latitude=float(natal_set.place.latitude),
+            longitude=float(natal_set.place.longitude),
+            datetime=natal_set.birth_datetime,
+            format=format_param,
+            name=natal_set.name,
+        )
+        
+        # Generate chart
+        try:
+            chart_data = generate_chart(chart_request)
+        except ChartTimeoutError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except ChartAPIError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Return chart data with appropriate content type
+        content_type = 'image/svg+xml' if format_param == 'svg' else 'image/png'
+        
+        # Chart data may be base64 encoded or raw bytes depending on API
+        chart_bytes = chart_data.get('chart')
+        if isinstance(chart_bytes, str):
+            # Base64 encoded - decode to bytes
+            import base64
+            chart_bytes = base64.b64decode(chart_bytes)
+        
+        return Response(
+            chart_bytes,
+            content_type=content_type,
+            headers={
+                'Content-Disposition': f'attachment; filename="{natal_set.name}.{format_param}"'
+            }
+        )

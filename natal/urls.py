@@ -7,6 +7,7 @@ from . import views
 
 app_name = "natal"
 
+# Web views
 urlpatterns = [
     path("", views.NatalSetListView.as_view(), name="natal_set_list"),
     path("create/", views.NatalSetCreateView.as_view(), name="natal_set_create"),
