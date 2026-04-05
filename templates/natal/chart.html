@@ -1,0 +1,65 @@
+{% load static %}
+
+{# Partial template for displaying natal chart via HTMX #}
+{# This template is loaded into the natal_set_detail.html page #}
+
+{% if error %}
+    <div class="chart-error alert alert-error">
+        <h4>⚠ Error Generating Chart</h4>
+        <p>{{ error }}</p>
+        <p class="error-hint">
+            If the Astro Clock server is not running, please start it with:
+        </p>
+        <code>cd astro-clock && cargo run</code>
+    </div>
+{% elif chart %}
+    <div class="chart-display" id="chart-display">
+        {% if chart.chart %}
+            {# SVG chart from Astro Clock API #}
+            <div class="chart-svg" id="chart-svg">
+                {{ chart.chart|safe }}
+            </div>
+        {% elif chart.image %}
+            {# Base64 encoded image #}
+            <img src="{{ chart.image }}" alt="Natal Chart" class="chart-image" />
+        {% elif chart.data %}
+            {# JSON data display for debugging #}
+            <div class="chart-data">
+                <h4>Chart Data</h4>
+                <pre>{{ chart.data|pprint }}</pre>
+            </div>
+        {% else %}
+            {# Raw chart data #}
+            <div class="chart-raw">
+                <pre>{{ chart|pprint }}</pre>
+            </div>
+        {% endif %}
+    </div>
+    
+    {# Chart metadata #}
+    {% if natal_set %}
+    <div class="chart-metadata">
+        <h4>Chart Parameters</h4>
+        <dl class="detail-list">
+            <dt>Name</dt>
+            <dd>{{ natal_set.name }}</dd>
+            
+            <dt>Latitude</dt>
+            <dd>{{ natal_set.place.latitude }}</dd>
+            
+            <dt>Longitude</dt>
+            <dd>{{ natal_set.place.longitude }}</dd>
+            
+            <dt>Birth Date/Time</dt>
+            <dd>{{ natal_set.birth_datetime|date:"F j, Y" }} at {{ natal_set.birth_datetime|time:"g:i A" }}</dd>
+            
+            <dt>Timezone</dt>
+            <dd>{{ natal_set.place.timezone }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+{% else %}
+    <div class="chart-loading">
+        <p>Loading chart...</p>
+    </div>
+{% endif %}

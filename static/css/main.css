@@ -21,6 +21,98 @@ body {
     min-height: 100vh;
 }
 
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    text-decoration: none;
+}
+
+.btn-primary {
+    background-color: #4361ee;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #3730a3;
+}
+
+.btn-secondary {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+.btn-secondary:hover {
+    background-color: #cbd5e1;
+}
+
+.btn-danger {
+    background-color: #dc2626;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #b91c1c;
+}
+
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Alerts */
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+}
+
+.alert h3,
+.alert h4 {
+    margin: 0 0 0.5rem 0;
+}
+
+.alert p {
+    margin: 0.5rem 0;
+}
+
+.alert-info {
+    background-color: #e0f2fe;
+    border: 1px solid #7dd3fc;
+    color: #0369a1;
+}
+
+.alert-error {
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+}
+
+.alert-success {
+    background-color: #dcfce7;
+    border: 1px solid #86efac;
+    color: #16a34a;
+}
+
+.alert-warning {
+    background-color: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #d97706;
+}
+
 /* Header and Navigation */
 header {
     background-color: #1a1a2e;
@@ -167,3 +259,172 @@ main {
 .mb-2 { margin-bottom: 1rem; }
 .mb-3 { margin-bottom: 1.5rem; }
 .mb-4 { margin-bottom: 2rem; }
+
+/* ==========================================================================
+   Natal Chart Styles
+   ========================================================================== */
+
+/* Chart Section */
+.chart-section {
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-button-container {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.chart-button-container .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-button-container .btn-icon {
+    font-size: 1.25rem;
+}
+
+.chart-hint {
+    margin-top: 0.5rem;
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.chart-content {
+    min-height: 200px;
+}
+
+/* Chart Display */
+.chart-display {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.chart-svg {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.chart-svg svg {
+    max-width: 100%;
+    height: auto;
+    max-height: 500px;
+}
+
+.chart-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.chart-data,
+.chart-raw {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.chart-data pre,
+.chart-raw pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Chart Metadata */
+.chart-metadata {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.chart-metadata .detail-list {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 0.5rem 1rem;
+    text-align: left;
+}
+
+.chart-metadata .detail-list dt {
+    font-weight: 600;
+    color: #555;
+}
+
+.chart-metadata .detail-list dd {
+    margin: 0;
+    color: #333;
+}
+
+/* Chart Error State */
+.chart-error {
+    padding: 1.5rem;
+    background: #fff3f3;
+    border: 1px solid #ffcccc;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.chart-error h4 {
+    margin: 0 0 1rem 0;
+    color: #c53030;
+}
+
+.chart-error p {
+    margin: 0.5rem 0;
+}
+
+.error-hint {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.chart-error code {
+    display: block;
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+}
+
+/* Chart Loading State */
+.chart-loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e0e0e0;
+    border-top-color: #4361ee;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* HTMX Chart Loading Indicator */
+.htmx-indicator.chart-loading {
+    display: none;
+}
+
+.htmx-request .htmx-indicator.chart-loading {
+    display: block;
+}

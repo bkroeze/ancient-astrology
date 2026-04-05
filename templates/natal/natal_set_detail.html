@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ natal_set.name }} - Ancient Astrology{% endblock %}
 
@@ -92,6 +93,39 @@
                 {% endwith %}
             </div>
         {% endif %}
+    </div>
+
+    {# Chart Section - HTMX loaded #}
+    <div class="detail-section">
+        <h2>Birth Chart</h2>
+        <div class="chart-section">
+            {# Generate Chart button - triggers HTMX load #}
+            <div class="chart-button-container" id="chart-button-container">
+                <button 
+                    hx-get="{% url 'natal:natal_set_chart' natal_set.pk %}"
+                    hx-target="#chart-content"
+                    hx-swap="innerHTML"
+                    hx-indicator="#chart-loading"
+                    class="btn btn-primary"
+                    id="generate-chart-btn"
+                >
+                    <span class="btn-icon">✧</span>
+                    Generate Chart
+                </button>
+                <p class="chart-hint">Click to generate and display the natal chart</p>
+            </div>
+            
+            {# Chart content container - HTMX loads chart here #}
+            <div id="chart-content" class="chart-content">
+                {# Chart will be loaded here via HTMX #}
+            </div>
+            
+            {# Loading indicator #}
+            <div id="chart-loading" class="htmx-indicator chart-loading">
+                <div class="loading-spinner"></div>
+                <p>Generating chart...</p>
+            </div>
+        </div>
     </div>
 
     <div class="back-link">

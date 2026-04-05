@@ -1395,3 +1395,74 @@ class ChartViewTest(TestCase):
         context = response.context
         self.assertEqual(context['natal_set'].name, 'My Chart')
         self.assertEqual(context['natal_set'].place.name, 'New York')
+
+
+class NatalSetDetailHTMXChartTest(TestCase):
+    """Tests for the HTMX chart button in the natal set detail view."""
+
+    def setUp(self):
+        """Set up test users and client."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
+            created_by=self.user
+        )
+        self.natal_set = NatalSet.objects.create(
+            name='My Chart',
+            owner=self.user,
+            birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
+            place=self.place,
+            permission=NatalSet.Permission.PRIVATE
+        )
+
+    def test_detail_page_has_generate_chart_button(self):
+        """Detail page should have a Generate Chart button with HTMX attributes."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(
+            reverse('natal:natal_set_detail', kwargs={'pk': self.natal_set.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        # Check for the button with HTMX attributes
+        self.assertContains(response, 'id="generate-chart-btn"')
+        self.assertContains(response, 'hx-get')
+        self.assertContains(response, 'hx-target="#chart-content"')
+        self.assertContains(response, 'Generate Chart')
+
+    def test_detail_page_has_chart_content_container(self):
+        """Detail page should have a chart content container for HTMX target."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(
+            reverse('natal:natal_set_detail', kwargs={'pk': self.natal_set.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="chart-content"')
+        self.assertContains(response, 'hx-indicator="#chart-loading"')
+
+    def test_detail_page_has_loading_indicator(self):
+        """Detail page should have a loading indicator for HTMX."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(
+            reverse('natal:natal_set_detail', kwargs={'pk': self.natal_set.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="chart-loading"')
+        self.assertContains(response, 'class="htmx-indicator chart-loading"')
+
+    def test_generate_chart_button_points_to_correct_url(self):
+        """Generate Chart button should point to the natal set chart URL."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(
+            reverse('natal:natal_set_detail', kwargs={'pk': self.natal_set.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        expected_url = reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+        self.assertContains(response, expected_url)
+
