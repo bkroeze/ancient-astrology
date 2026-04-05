@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ natal_set.name }} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Delete Natal Set</h1>
+    </div>
+
+    <div class="confirm-delete">
+        <p>Are you sure you want to delete <strong>{{ natal_set.name }}</strong>?</p>
+        
+        <div class="detail-summary">
+            <p><strong>Birth Date:</strong> {{ natal_set.birth_datetime|date:"F j, Y" }}</p>
+            <p><strong>Location:</strong> {{ natal_set.place.name }}</p>
+            <p><strong>Permission:</strong> {{ natal_set.get_permission_display }}</p>
+        </div>
+
+        <p class="warning-text">This action cannot be undone.</p>
+
+        <form method="post" class="delete-form">
+            {% csrf_token %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                <a href="{% url 'natal:natal_set_detail' natal_set.pk %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

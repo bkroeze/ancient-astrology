@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title|default:"Natal Set" }} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>{{ page_title|default:"Natal Set" }}</h1>
+    </div>
+
+    <form method="post" class="natal-set-form">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <div class="error-message">{{ form.name.errors.0 }}</div>
+            {% endif %}
+            {% if form.name.help_text %}
+                <div class="help-text">{{ form.name.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.birth_datetime.id_for_label }}">{{ form.birth_datetime.label }}</label>
+            {{ form.birth_datetime }}
+            {% if form.birth_datetime.errors %}
+                <div class="error-message">{{ form.birth_datetime.errors.0 }}</div>
+            {% endif %}
+            {% if form.birth_datetime.help_text %}
+                <div class="help-text">{{ form.birth_datetime.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.place.id_for_label }}">{{ form.place.label }}</label>
+            {{ form.place }}
+            {% if form.place.errors %}
+                <div class="error-message">{{ form.place.errors.0 }}</div>
+            {% endif %}
+            {% if form.place.help_text %}
+                <div class="help-text">{{ form.place.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}
+                <div class="error-message">{{ form.notes.errors.0 }}</div>
+            {% endif %}
+            {% if form.notes.help_text %}
+                <div class="help-text">{{ form.notes.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.permission.id_for_label }}">{{ form.permission.label }}</label>
+            {{ form.permission }}
+            {% if form.permission.errors %}
+                <div class="error-message">{{ form.permission.errors.0 }}</div>
+            {% endif %}
+            {% if form.permission.help_text %}
+                <div class="help-text">{{ form.permission.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group" id="shared-with-group" style="display: none;">
+            <label for="{{ form.shared_with.id_for_label }}">{{ form.shared_with.label }}</label>
+            {{ form.shared_with }}
+            {% if form.shared_with.errors %}
+                <div class="error-message">{{ form.shared_with.errors.0 }}</div>
+            {% endif %}
+            {% if form.shared_with.help_text %}
+                <div class="help-text">{{ form.shared_with.help_text }}</div>
+            {% endif %}
+            <div class="help-text">Hold Ctrl/Cmd to select multiple users.</div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if page_title|default:""|lower|slice:":6" == "create" %}
+                    Create Natal Set
+                {% else %}
+                    Save Changes
+                {% endif %}
+            </button>
+            <a href="{% url 'natal:natal_set_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const permissionSelect = document.querySelector('#{{ form.permission.id_for_label }}');
+    const sharedWithGroup = document.getElementById('shared-with-group');
+
+    function toggleSharedWith() {
+        const selectedValue = permissionSelect.value;
+        if (selectedValue === 'named_group') {
+            sharedWithGroup.style.display = 'block';
+        } else {
+            sharedWithGroup.style.display = 'none';
+        }
+    }
+
+    permissionSelect.addEventListener('change', toggleSharedWith);
+    // Initialize on page load
+    toggleSharedWith();
+});
+</script>
+{% endblock %}

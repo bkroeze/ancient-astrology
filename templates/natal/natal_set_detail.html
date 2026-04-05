@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ natal_set.name }} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>{{ natal_set.name }}</h1>
+        {% if natal_set.owner == user %}
+            <div class="action-buttons">
+                <a href="{% url 'natal:natal_set_edit' natal_set.pk %}" class="btn btn-secondary">Edit</a>
+                <a href="{% url 'natal:natal_set_delete' natal_set.pk %}" class="btn btn-danger">Delete</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="natal-set-detail">
+        <div class="detail-section">
+            <h2>Basic Information</h2>
+            <dl class="detail-list">
+                <dt>Name</dt>
+                <dd>{{ natal_set.name }}</dd>
+
+                <dt>Permission</dt>
+                <dd>
+                    <span class="badge badge-{{ natal_set.permission }}">{{ natal_set.get_permission_display }}</span>
+                </dd>
+
+                {% if natal_set.owner != user %}
+                    <dt>Owner</dt>
+                    <dd>{{ natal_set.owner.email }}</dd>
+                {% endif %}
+
+                <dt>Created</dt>
+                <dd>{{ natal_set.created_at|date:"F j, Y" }} at {{ natal_set.created_at|time:"g:i A" }}</dd>
+
+                <dt>Last Updated</dt>
+                <dd>{{ natal_set.updated_at|date:"F j, Y" }} at {{ natal_set.updated_at|time:"g:i A" }}</dd>
+            </dl>
+        </div>
+
+        <div class="detail-section">
+            <h2>Birth Information</h2>
+            <dl class="detail-list">
+                <dt>Birth Date</dt>
+                <dd>{{ natal_set.birth_datetime|date:"F j, Y" }}</dd>
+
+                <dt>Birth Time</dt>
+                <dd>{{ natal_set.birth_datetime|time:"g:i A" }}</dd>
+
+                <dt>Timezone</dt>
+                <dd>{{ natal_set.place.timezone }}</dd>
+            </dl>
+        </div>
+
+        <div class="detail-section">
+            <h2>Location</h2>
+            <dl class="detail-list">
+                <dt>Place Name</dt>
+                <dd>{{ natal_set.place.name }}</dd>
+
+                <dt>Latitude</dt>
+                <dd>{{ natal_set.place.latitude }}</dd>
+
+                <dt>Longitude</dt>
+                <dd>{{ natal_set.place.longitude }}</dd>
+            </dl>
+        </div>
+
+        {% if natal_set.notes %}
+            <div class="detail-section">
+                <h2>Notes</h2>
+                <div class="notes-content">
+                    {{ natal_set.notes|linebreaks }}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if natal_set.permission == natal_set.NAMED_GROUP %}
+            <div class="detail-section">
+                <h2>Shared With</h2>
+                {% with natal_set.shared_with.all as shared_users %}
+                    {% if shared_users %}
+                        <ul class="shared-users-list">
+                            {% for user in shared_users %}
+                                <li>{{ user.email }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No users currently have access.</p>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="back-link">
+        <a href="{% url 'natal:natal_set_list' %}">&larr; Back to My Natal Sets</a>
+    </div>
+</div>
+{% endblock %}
