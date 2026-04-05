@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Ancient Astrology{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Ancient Astrology</h1>
+    <p>Explore the celestial wisdom of the ancients.</p>
+</section>
+
+<section class="htmx-demo">
+    <h2>HTMX Integration Demo</h2>
+    <p>Click the button below to see HTMX in action with proper CSRF handling:</p>
+    
+    <!-- HTMX button that loads partial content -->
+    <button hx-get="{% url 'core:htmx_partial' %}" 
+            hx-target="#htmx-result"
+            hx-swap="innerHTML"
+            type="button">
+        Load HTMX Content
+    </button>
+    
+    <div id="htmx-result">
+        <!-- HTMX partial content will be loaded here -->
+    </div>
+</section>
+{% endblock %}
