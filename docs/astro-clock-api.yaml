@@ -1,0 +1,491 @@
+openapi: 3.0.0
+info:
+  title: Astro Clock API
+  version: 1.0.0
+  description: API for astronomical chart calculations and job management
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the server
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+
+  /chart:
+    get:
+      summary: Generate astrological chart
+      description: Generates and returns an astrological chart as PNG or SVG
+      operationId: getChart
+      parameters:
+        - name: lat
+          in: query
+          description: Latitude of the location
+          schema:
+            type: number
+            format: double
+            default: 0.0
+        - name: lon
+          in: query
+          description: Longitude of the location
+          schema:
+            type: number
+            format: double
+            default: 0.0
+        - name: time
+          in: query
+          description: Time for the chart (optional)
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: Output format - "svg" or "png" (default: png)
+          schema:
+            type: string
+            enum: [svg, png]
+            default: png
+      responses:
+        '200':
+          description: Chart image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+
+  /api/v1/load:
+    post:
+      summary: Create load job
+      description: |
+        Creates and executes a data load job. 
+        When sync=true, blocks until completion and returns result.
+        When sync=false or omitted, returns immediately with job-id for polling.
+      operationId: createLoadJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - start_date
+                - days
+              properties:
+                start_date:
+                  type: string
+                  description: Start date in YYYY-MM-DD format
+                  example: "2024-01-01"
+                days:
+                  type: integer
+                  description: Number of days to load (1-365)
+                  minimum: 1
+                  maximum: 365
+                  example: 7
+                sync:
+                  type: boolean
+                  description: If true, execute synchronously and wait for completion
+                  default: false
+      responses:
+        '200':
+          description: Sync load completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadSyncResponse'
+        '202':
+          description: Async load job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadAsyncResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+
+  /api/v1/jobs/{id}:
+    get:
+      summary: Get job status
+      description: Retrieves the details and status of a specific job
+      operationId: getJob
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+
+  /api/v1/jobs:
+    get:
+      summary: List jobs
+      description: Returns a paginated list of jobs
+      operationId: listJobs
+      parameters:
+        - name: status
+          in: query
+          description: Filter by job status
+          schema:
+            type: string
+            enum: [pending, in_process, complete, failed]
+        - name: limit
+          in: query
+          description: Maximum number of jobs to return (default: 20, max: 100)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset (default: 0)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListJobsResponse'
+        '400':
+          description: Invalid query parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/query/wedding:
+    post:
+      summary: Execute wedding query
+      description: |
+        Execute a wedding date query.
+        When sync=true, blocks until completion and returns result.
+        When sync=false or omitted, returns immediately with job-id for polling.
+      operationId: queryWedding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Sync query completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuerySyncResponse'
+        '202':
+          description: Async query job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryAsyncResponse'
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/query/project:
+    post:
+      summary: Execute project query
+      description: |
+        Execute a project start date query.
+        When sync=true, blocks until completion and returns result.
+        When sync=false or omitted, returns immediately with job-id for polling.
+      operationId: queryProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Sync query completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuerySyncResponse'
+        '202':
+          description: Async query job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryAsyncResponse'
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/query/travel:
+    post:
+      summary: Execute travel query
+      description: |
+        Execute a travel date query.
+        When sync=true, blocks until completion and returns result.
+        When sync=false or omitted, returns immediately with job-id for polling.
+      operationId: queryTravel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Sync query completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuerySyncResponse'
+        '202':
+          description: Async query job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryAsyncResponse'
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/query/{query_name}:
+    post:
+      summary: Execute generic named query
+      description: |
+        Execute a named query (wedding, project, or travel).
+        When sync=true, blocks until completion and returns result.
+        When sync=false or omitted, returns immediately with job-id for polling.
+      operationId: executeQuery
+      parameters:
+        - name: query_name
+          in: path
+          required: true
+          description: Name of the query to execute
+          schema:
+            type: string
+            enum: [wedding, project, travel]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Sync query completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuerySyncResponse'
+        '202':
+          description: Async query job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryAsyncResponse'
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    LoadRequest:
+      type: object
+      required:
+        - start_date
+        - days
+      properties:
+        start_date:
+          type: string
+          description: Start date in YYYY-MM-DD format
+        days:
+          type: integer
+          description: Number of days to load (1-365)
+          minimum: 1
+          maximum: 365
+        sync:
+          type: boolean
+          description: Execute synchronously
+          default: false
+
+    LoadSyncResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: complete
+        result:
+          type: object
+          description: Job result data (present when complete)
+
+    LoadAsyncResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: pending
+        poll_url:
+          type: string
+          description: URL to poll for job status
+          example: "/api/v1/jobs/00000000-0000-0000-0000-000000000000"
+
+    QueryRequest:
+      type: object
+      required:
+        - start_date
+        - days
+      properties:
+        start_date:
+          type: string
+          description: Start date in YYYY-MM-DD format
+        days:
+          type: integer
+          description: Number of days to query (1-366)
+          minimum: 1
+          maximum: 366
+        sync:
+          type: boolean
+          description: Execute synchronously
+          default: false
+
+    QuerySyncResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        result:
+          type: object
+          description: Query result data (present when complete)
+
+    QueryAsyncResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: pending
+        message:
+          type: string
+          description: Status message with polling instructions
+
+    JobResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        job_type:
+          type: string
+          example: load
+        status:
+          type: string
+          enum: [pending, in_process, complete, failed]
+        payload:
+          type: object
+          description: Job input parameters
+        result:
+          type: object
+          description: Job output (present when complete)
+        error:
+          type: object
+          description: Error details (present when failed)
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ListJobsResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobResponse'
+        total:
+          type: integer
+          description: Total number of jobs matching filter
+        limit:
+          type: integer
+          description: Limit used
+        offset:
+          type: integer
+          description: Offset used
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: invalid_date
+        message:
+          type: string
+          description: Human-readable error message
