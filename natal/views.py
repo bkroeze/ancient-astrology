@@ -207,3 +207,108 @@ class NatalSetDeleteView(LoginRequiredMixin, DeleteView):
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied("You don't have permission to delete this natal set.")
         return obj
+
+
+class ChartView(LoginRequiredMixin, DetailView):
+    """
+    Chart generation view supporting both natal set charts and arbitrary parameter charts.
+    
+    URL patterns:
+    - /natal/<pk>/chart/ - Chart for a specific natal set
+    - /natal/chart/?lat=...&lon=...&time=... - Chart with arbitrary parameters
+    
+    The view:
+    - Requires login (LoginRequiredMixin)
+    - Checks permissions via can_view() for natal set charts
+    - Calls the Astro Clock API via clients.generate_chart()
+    - Handles errors gracefully by adding error to context
+    """
+    model = NatalSet
+    template_name = "natal/chart_view.html"
+    context_object_name = "natal_set"
+    
+    def get_queryset(self):
+        """Filter to sets the user can view."""
+        from django.db.models import Q
+        
+        user = self.request.user
+        return NatalSet.objects.filter(
+            Q(owner=user) |
+            Q(permission=NatalSet.Permission.PUBLIC) |
+            (Q(permission=NatalSet.Permission.NAMED_GROUP) & Q(shared_with=user))
+        ).select_related('owner', 'place')
+    
+    def get_object(self, queryset=None):
+        """Get the natal set and verify permission."""
+        # Only get object for pk-based URLs, not parameter-based charts
+        if self.kwargs.get('pk'):
+            obj = super().get_object(queryset)
+            if not obj.can_view(self.request.user):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("You don't have permission to view this natal set.")
+            return obj
+        return None
+    
+    def get(self, request, *args, **kwargs):
+        """Handle GET request for chart generation."""
+        context = {}
+        
+        # Check if this is a natal set chart or parameter-based chart
+        natal_set = self.get_object()
+        
+        if natal_set:
+            # Natal set chart: /natal/<pk>/chart/
+            context['natal_set'] = natal_set
+            chart_params = {
+                'latitude': float(natal_set.place.latitude),
+                'longitude': float(natal_set.place.longitude),
+                'datetime': natal_set.birth_datetime,
+                'name': natal_set.name,
+            }
+        else:
+            # Parameter-based chart: /natal/chart/?lat=...&lon=...&time=...
+            try:
+                lat = request.GET.get('lat') or request.GET.get('latitude')
+                lon = request.GET.get('lon') or request.GET.get('longitude')
+                time_str = request.GET.get('time') or request.GET.get('datetime')
+                chart_name = request.GET.get('name', 'Custom Chart')
+                
+                if not all([lat, lon, time_str]):
+                    context['error'] = "Missing required parameters: lat, lon, and time are required"
+                    return self.render_to_response(context)
+                
+                from django.utils.dateparse import parse_datetime
+                chart_datetime = parse_datetime(time_str)
+                if chart_datetime is None:
+                    context['error'] = "Invalid datetime format. Use ISO format (e.g., 1990-06-15T12:00)"
+                    return self.render_to_response(context)
+                
+                chart_params = {
+                    'latitude': float(lat),
+                    'longitude': float(lon),
+                    'datetime': chart_datetime,
+                    'name': chart_name,
+                }
+            except (ValueError, TypeError) as e:
+                context['error'] = f"Invalid parameter values: {str(e)}"
+                return self.render_to_response(context)
+        
+        # Generate the chart
+        try:
+            from natal.clients import ChartRequest, generate_chart
+            chart_request = ChartRequest(
+                latitude=chart_params['latitude'],
+                longitude=chart_params['longitude'],
+                datetime=chart_params['datetime'],
+                name=chart_params.get('name'),
+            )
+            chart_data = generate_chart(chart_request)
+            context['chart'] = chart_data
+        except Exception as e:
+            # Catch API errors and add to context for graceful error handling
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Chart generation failed: {str(e)}")
+            context['error'] = f"Chart generation failed: {str(e)}"
+        
+        return self.render_to_response(context)

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{% if natal_set %}{{ natal_set.name }} - Chart{% else %}Custom Chart{% endif %} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>{% if natal_set %}{{ natal_set.name }}{% else %}Custom Chart{% endif %}</h1>
+        <div class="chart-actions">
+            {% if natal_set %}
+                <a href="{% url 'natal:natal_set_detail' natal_set.pk %}" class="btn btn-secondary">Back to Details</a>
+            {% else %}
+                <a href="{% url 'natal:natal_set_list' %}" class="btn btn-secondary">Back to My Natal Sets</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="chart-container">
+        {% if error %}
+            <div class="alert alert-error">
+                <h3>Error Generating Chart</h3>
+                <p>{{ error }}</p>
+                <p>If the Astro Clock server is not running, please start it with:</p>
+                <code>cd astro-clock && cargo run</code>
+            </div>
+        {% elif chart %}
+            <div class="chart-display">
+                {% if chart.chart %}
+                    <div class="chart-svg">
+                        {{ chart.chart|safe }}
+                    </div>
+                {% elif chart.image %}
+                    <img src="{{ chart.image }}" alt="Natal Chart" class="chart-image" />
+                {% elif chart.data %}
+                    <div class="chart-data">
+                        <h3>Chart Data</h3>
+                        <pre>{{ chart.data|pprint }}</pre>
+                    </div>
+                {% else %}
+                    <div class="chart-raw">
+                        <pre>{{ chart|pprint }}</pre>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if natal_set %}
+            <div class="chart-metadata">
+                <h3>Chart Parameters</h3>
+                <dl class="detail-list">
+                    <dt>Name</dt>
+                    <dd>{{ natal_set.name }}</dd>
+                    
+                    <dt>Latitude</dt>
+                    <dd>{{ natal_set.place.latitude }}</dd>
+                    
+                    <dt>Longitude</dt>
+                    <dd>{{ natal_set.place.longitude }}</dd>
+                    
+                    <dt>Birth Date/Time</dt>
+                    <dd>{{ natal_set.birth_datetime|date:"F j, Y" }} at {{ natal_set.birth_datetime|time:"g:i A" }}</dd>
+                    
+                    <dt>Timezone</dt>
+                    <dd>{{ natal_set.place.timezone }}</dd>
+                </dl>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                <p>No chart data available.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

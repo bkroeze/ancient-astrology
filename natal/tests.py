@@ -1108,3 +1108,290 @@ class ChartClientTest(TestCase):
         import natal.clients
         self.assertIsNotNone(natal.clients.__doc__)
         self.assertIn("Astro Clock API", natal.clients.__doc__)
+
+
+# =============================================================================
+# CHART VIEW TESTS
+# =============================================================================
+
+class ChartViewTest(TestCase):
+    """Tests for the ChartView."""
+
+    def setUp(self):
+        """Set up test users and client."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='testpass123'
+        )
+        self.place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
+            created_by=self.user
+        )
+        self.natal_set = NatalSet.objects.create(
+            name='My Chart',
+            owner=self.user,
+            birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
+            place=self.place,
+            permission=NatalSet.Permission.PRIVATE
+        )
+        self.public_set = NatalSet.objects.create(
+            name='Public Chart',
+            owner=self.user,
+            birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
+            place=self.place,
+            permission=NatalSet.Permission.PUBLIC
+        )
+
+    def test_chart_requires_login(self):
+        """Chart view should redirect anonymous users to login."""
+        response = self.client.get(
+            reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_chart_requires_login_params(self):
+        """Chart view with params should redirect anonymous users to login."""
+        response = self.client.get(reverse('natal:chart_view'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_natal_set_chart_owner_access(self):
+        """Owner should be able to view their natal set chart."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        # Mock the chart generation
+        with patch('natal.clients.generate_chart') as mock_generate:
+            mock_generate.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('natal_set', response.context)
+        self.assertEqual(response.context['natal_set'], self.natal_set)
+
+    def test_natal_set_chart_public_access(self):
+        """Any authenticated user should be able to view public natal set charts."""
+        self.client.login(email='other@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            mock_generate.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.public_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+
+    def test_natal_set_chart_private_denied(self):
+        """Non-owner should get 404 for private natal set chart."""
+        self.client.login(email='other@example.com', password='testpass123')
+        response = self.client.get(
+            reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_natal_set_chart_nonexistent(self):
+        """Non-existent natal set should return 404."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(
+            reverse('natal:natal_set_chart', kwargs={'pk': 99999})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_param_chart_success(self):
+        """Arbitrary parameter chart should generate chart with provided params."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            mock_generate.return_value = {'chart': '<svg>custom</svg>', 'format': 'svg'}
+            response = self.client.get(
+                reverse('natal:chart_view'),
+                {
+                    'lat': '40.7128',
+                    'lon': '-74.0060',
+                    'time': '1990-06-15T12:00:00',
+                }
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('chart', response.context)
+        mock_generate.assert_called_once()
+        # Verify the correct parameters were passed
+        call_args = mock_generate.call_args[0][0]
+        self.assertEqual(call_args.latitude, 40.7128)
+        self.assertEqual(call_args.longitude, -74.0060)
+
+    def test_param_chart_missing_lat(self):
+        """Missing latitude should return error in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        response = self.client.get(
+            reverse('natal:chart_view'),
+            {
+                'lon': '-74.0060',
+                'time': '1990-06-15T12:00:00',
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('Missing required parameters', response.context['error'])
+
+    def test_param_chart_missing_lon(self):
+        """Missing longitude should return error in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        response = self.client.get(
+            reverse('natal:chart_view'),
+            {
+                'lat': '40.7128',
+                'time': '1990-06-15T12:00:00',
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('Missing required parameters', response.context['error'])
+
+    def test_param_chart_missing_time(self):
+        """Missing time should return error in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        response = self.client.get(
+            reverse('natal:chart_view'),
+            {
+                'lat': '40.7128',
+                'lon': '-74.0060',
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('Missing required parameters', response.context['error'])
+
+    def test_param_chart_invalid_datetime(self):
+        """Invalid datetime format should return error in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        response = self.client.get(
+            reverse('natal:chart_view'),
+            {
+                'lat': '40.7128',
+                'lon': '-74.0060',
+                'time': 'not-a-date',
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('Invalid datetime format', response.context['error'])
+
+    def test_param_chart_invalid_latitude(self):
+        """Invalid latitude value should return error in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        response = self.client.get(
+            reverse('natal:chart_view'),
+            {
+                'lat': 'not-a-number',
+                'lon': '-74.0060',
+                'time': '1990-06-15T12:00:00',
+            }
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('Invalid parameter values', response.context['error'])
+
+    def test_chart_api_error_handled(self):
+        """Chart generation API error should be handled gracefully with error in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            from natal.clients import ChartAPIError
+            mock_generate.side_effect = ChartAPIError(
+                message="API Error",
+                status_code=500
+            )
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('Chart generation failed', response.context['error'])
+
+    def test_chart_timeout_error_handled(self):
+        """Chart generation timeout should be handled gracefully."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            from natal.clients import ChartTimeoutError
+            mock_generate.side_effect = ChartTimeoutError()
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+        self.assertIn('timed out', response.context['error'])
+
+    def test_chart_connection_error_handled(self):
+        """Chart generation connection error should be handled gracefully."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            from natal.clients import ChartAPIError
+            mock_generate.side_effect = ChartAPIError(message="Connection failed")
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('error', response.context)
+
+    def test_param_chart_with_name(self):
+        """Parameter chart with name should pass name to API."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            mock_generate.return_value = {'chart': '<svg>named</svg>', 'format': 'svg'}
+            response = self.client.get(
+                reverse('natal:chart_view'),
+                {
+                    'lat': '40.7128',
+                    'lon': '-74.0060',
+                    'time': '1990-06-15T12:00:00',
+                    'name': 'My Custom Chart',
+                }
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        call_args = mock_generate.call_args[0][0]
+        self.assertEqual(call_args.name, 'My Custom Chart')
+
+    def test_natal_set_chart_displays_natal_set_info(self):
+        """Chart for natal set should include natal set info in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_generate:
+            mock_generate.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        context = response.context
+        self.assertEqual(context['natal_set'].name, 'My Chart')
+        self.assertEqual(context['natal_set'].place.name, 'New York')
