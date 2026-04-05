@@ -311,4 +311,22 @@ class ChartView(LoginRequiredMixin, DetailView):
             logger.error(f"Chart generation failed: {str(e)}")
             context['error'] = f"Chart generation failed: {str(e)}"
         
+        # Fetch chart analysis data (planets, houses, aspects)
+        try:
+            from natal.clients import AnalysisRequest, get_chart_data
+            analysis_request = AnalysisRequest(
+                latitude=chart_params['latitude'],
+                longitude=chart_params['longitude'],
+                datetime=chart_params['datetime'],
+            )
+            analysis_data = get_chart_data(analysis_request)
+            context['analysis'] = analysis_data
+        except Exception as e:
+            # Catch analysis API errors and log but don't fail the view
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Chart analysis fetch failed: {str(e)}")
+            # Add analysis error to context for graceful display
+            context['analysis_error'] = str(e)
+        
         return self.render_to_response(context)

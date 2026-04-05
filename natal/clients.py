@@ -164,3 +164,117 @@ def generate_chart(request: ChartRequest) -> dict[str, Any]:
     except requests.RequestException as e:
         _log.error("Chart API request failed: %s", str(e))
         raise ChartAPIError(message=str(e))
+
+
+@dataclass
+class AnalysisRequest:
+    """
+    Request parameters for chart analysis data (planets, houses, aspects).
+    
+    Attributes:
+        latitude: Geographic latitude (-90 to 90)
+        longitude: Geographic longitude (-180 to 180)
+        datetime: Date and time for the chart (UTC)
+        house_system: House system to use (default: 'P' for Placidus)
+    """
+    latitude: float
+    longitude: float
+    datetime: datetime
+    house_system: str = 'P'
+
+
+def get_chart_data(request: AnalysisRequest) -> dict[str, Any]:
+    """
+    Fetch chart analysis data (planets, houses, aspects) from the Astro Clock API.
+    
+    Args:
+        request: AnalysisRequest containing analysis parameters
+        
+    Returns:
+        dict: API response containing:
+            - planets: List of planet positions
+            - houses: House cusp data
+            - aspects: List of aspects between planets
+            - grand_trines: List of grand trine configurations
+            - moon_void_of_course: Whether Moon is void of course
+            - metadata: Calculation metadata (lat, lon, julian_day, house_system)
+        
+    Raises:
+        ChartAPIError: If the API returns an error response
+        ChartTimeoutError: If the API request times out
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+    
+    # Get API configuration
+    base_url = settings.ASTRO_CLOCK_SERVER
+    timeout = getattr(settings, 'CHART_API_TIMEOUT', 30)
+    
+    # Build request query parameters
+    params = {
+        'lat': request.latitude,
+        'lon': request.longitude,
+    }
+    
+    # Log the API call
+    _log.info(
+        "Fetching chart analysis data: lat=%s, lon=%s, datetime=%s, house_system=%s",
+        request.latitude, 
+        request.longitude, 
+        request.datetime.isoformat(),
+        request.house_system
+    )
+    
+    # Build API URL
+    api_url = urljoin(base_url.rstrip('/') + '/', 'api/v1/chart/data')
+    
+    try:
+        response = requests.get(
+            api_url,
+            params=params,
+            timeout=timeout,
+            headers={'Accept': 'application/json'}
+        )
+        
+        # Handle non-success responses
+        if not response.ok:
+            try:
+                error_data = response.json()
+                error_message = error_data.get('error', error_data.get('message', 'Unknown error'))
+            except ValueError:
+                error_message = response.text or 'Unknown error'
+            
+            _log.error(
+                "Chart analysis API error: status=%s, message=%s",
+                response.status_code,
+                error_message
+            )
+            raise ChartAPIError(
+                message=error_message,
+                status_code=response.status_code,
+                response_data=error_data if 'error_data' in locals() else None
+            )
+        
+        # Return successful response
+        result = response.json()
+        _log.info(
+            "Chart analysis data fetched successfully: %d planets, %d aspects",
+            len(result.get('planets', [])),
+            len(result.get('aspects', []))
+        )
+        return result
+        
+    except requests.Timeout:
+        _log.error("Chart analysis API timed out after %s seconds", timeout)
+        raise ChartTimeoutError(
+            f"Chart analysis timed out after {timeout} seconds"
+        )
+    except requests.ConnectionError as e:
+        _log.error("Chart analysis API connection error: %s", str(e))
+        raise ChartAPIError(
+            message=f"Could not connect to chart server: {base_url}",
+            status_code=None
+        )
+    except requests.RequestException as e:
+        _log.error("Chart analysis API request failed: %s", str(e))
+        raise ChartAPIError(message=str(e))

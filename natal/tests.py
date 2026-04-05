@@ -1466,3 +1466,319 @@ class NatalSetDetailHTMXChartTest(TestCase):
         expected_url = reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
         self.assertContains(response, expected_url)
 
+
+# =============================================================================
+# ANALYSIS CLIENT TESTS
+# =============================================================================
+
+from natal.clients import (
+    AnalysisRequest,
+    get_chart_data,
+)
+
+
+class AnalysisClientTest(TestCase):
+    """Tests for the chart analysis data client."""
+
+    def test_analysis_request_dataclass(self):
+        """AnalysisRequest stores parameters correctly."""
+        dt = datetime(1990, 6, 15, 12, 0, 0)
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=dt,
+            house_system='P'
+        )
+        self.assertEqual(request.latitude, 40.7128)
+        self.assertEqual(request.longitude, -74.0060)
+        self.assertEqual(request.datetime, dt)
+        self.assertEqual(request.house_system, 'P')
+
+    def test_analysis_request_defaults(self):
+        """AnalysisRequest has correct default values."""
+        dt = datetime(1990, 6, 15, 12, 0, 0)
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=dt
+        )
+        self.assertEqual(request.house_system, 'P')
+
+    @patch('natal.clients.requests.get')
+    def test_get_chart_data_success(self, mock_get):
+        """get_chart_data returns analysis data on success."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'planets': [
+                {'name': 'Sun', 'longitude': 83.5, 'speed': 1.0},
+                {'name': 'Moon', 'longitude': 150.2, 'speed': 12.5},
+            ],
+            'houses': {'cusps': [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]},
+            'aspects': [{'planet1': 'Sun', 'planet2': 'Moon', 'type': 'trine', 'orb': 0.5}],
+            'grand_trines': [],
+            'moon_void_of_course': False,
+            'metadata': {'latitude': 40.7128, 'longitude': -74.0060, 'house_system': 'Placidus'}
+        }
+        mock_get.return_value = mock_response
+
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=datetime(1990, 6, 15, 12, 0, 0),
+        )
+        result = get_chart_data(request)
+
+        self.assertIn('planets', result)
+        self.assertIn('houses', result)
+        self.assertIn('aspects', result)
+        self.assertEqual(len(result['planets']), 2)
+        self.assertEqual(result['planets'][0]['name'], 'Sun')
+        mock_get.assert_called_once()
+
+    @patch('natal.clients.requests.get')
+    def test_get_chart_data_api_error(self, mock_get):
+        """get_chart_data raises ChartAPIError on API error."""
+        mock_response = MagicMock()
+        mock_response.ok = False
+        mock_response.status_code = 400
+        mock_response.json.return_value = {'error': 'Invalid coordinates'}
+        mock_get.return_value = mock_response
+
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=datetime(1990, 6, 15, 12, 0, 0),
+        )
+
+        with self.assertRaises(ChartAPIError) as context:
+            get_chart_data(request)
+
+        self.assertEqual(context.exception.status_code, 400)
+        self.assertEqual(context.exception.error_message, 'Invalid coordinates')
+
+    @patch('natal.clients.requests.get')
+    def test_get_chart_data_timeout(self, mock_get):
+        """get_chart_data raises ChartTimeoutError on timeout."""
+        import requests
+        mock_get.side_effect = requests.Timeout()
+
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=datetime(1990, 6, 15, 12, 0, 0),
+        )
+
+        with self.assertRaises(ChartTimeoutError):
+            get_chart_data(request)
+
+    @patch('natal.clients.requests.get')
+    def test_get_chart_data_connection_error(self, mock_get):
+        """get_chart_data raises ChartAPIError on connection error."""
+        import requests
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
+
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=datetime(1990, 6, 15, 12, 0, 0),
+        )
+
+        with self.assertRaises(ChartAPIError) as context:
+            get_chart_data(request)
+
+        self.assertIn("Could not connect", context.exception.error_message)
+        self.assertIsNone(context.exception.status_code)
+
+    @patch('natal.clients.requests.get')
+    def test_get_chart_data_includes_params(self, mock_get):
+        """get_chart_data includes correct query parameters."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'planets': [],
+            'houses': {'cusps': []},
+            'aspects': [],
+            'grand_trines': [],
+            'moon_void_of_course': None,
+            'metadata': {}
+        }
+        mock_get.return_value = mock_response
+
+        request = AnalysisRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=datetime(1990, 6, 15, 12, 0, 0),
+        )
+        get_chart_data(request)
+
+        # Verify the correct parameters were passed
+        call_kwargs = mock_get.call_args[1]
+        self.assertEqual(call_kwargs['params']['lat'], 40.7128)
+        self.assertEqual(call_kwargs['params']['lon'], -74.0060)
+
+
+# =============================================================================
+# CHART VIEW ANALYSIS TESTS
+# =============================================================================
+
+class ChartViewAnalysisTest(TestCase):
+    """Tests for analysis data integration in ChartView."""
+
+    def setUp(self):
+        """Set up test users and client."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
+            created_by=self.user
+        )
+        self.natal_set = NatalSet.objects.create(
+            name='My Chart',
+            owner=self.user,
+            birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
+            place=self.place,
+            permission=NatalSet.Permission.PRIVATE
+        )
+
+    def test_chart_view_fetches_analysis_data(self):
+        """ChartView fetches and includes analysis data in context."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        analysis_data = {
+            'planets': [
+                {'name': 'Sun', 'longitude': 83.5, 'speed': 1.0},
+                {'name': 'Moon', 'longitude': 150.2, 'speed': 12.5},
+            ],
+            'houses': {'cusps': [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]},
+            'aspects': [{'planet1': 'Sun', 'planet2': 'Moon', 'type': 'trine', 'orb': 0.5}],
+            'grand_trines': [],
+            'moon_void_of_course': False,
+            'metadata': {'latitude': 40.7128, 'longitude': -74.0060, 'house_system': 'Placidus'}
+        }
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            mock_analysis.return_value = analysis_data
+            
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('analysis', response.context)
+        self.assertEqual(response.context['analysis'], analysis_data)
+        mock_analysis.assert_called_once()
+
+    def test_chart_view_analysis_error_does_not_crash_view(self):
+        """ChartView handles analysis API errors gracefully."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            mock_analysis.side_effect = ChartAPIError(
+                message="Analysis API unavailable",
+                status_code=503
+            )
+            
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        # View should not crash, analysis_error should be in context
+        self.assertIn('analysis_error', response.context)
+        self.assertIn('Analysis API unavailable', response.context['analysis_error'])
+        # Chart should still be present
+        self.assertIn('chart', response.context)
+
+    def test_chart_view_analysis_timeout_does_not_crash_view(self):
+        """ChartView handles analysis timeout gracefully."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.return_value = {'chart': '<svg>test</svg>', 'format': 'svg'}
+            mock_analysis.side_effect = ChartTimeoutError()
+            
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('analysis_error', response.context)
+        self.assertIn('timed out', response.context['analysis_error'])
+
+    def test_chart_view_param_chart_includes_analysis(self):
+        """Parameter-based chart also fetches analysis data."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        analysis_data = {
+            'planets': [{'name': 'Sun', 'longitude': 83.5, 'speed': 1.0}],
+            'houses': {'cusps': []},
+            'aspects': [],
+            'grand_trines': [],
+            'moon_void_of_course': None,
+            'metadata': {}
+        }
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.return_value = {'chart': '<svg>custom</svg>', 'format': 'svg'}
+            mock_analysis.return_value = analysis_data
+            
+            response = self.client.get(
+                reverse('natal:chart_view'),
+                {
+                    'lat': '40.7128',
+                    'lon': '-74.0060',
+                    'time': '1990-06-15T12:00:00',
+                }
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('analysis', response.context)
+        # Verify analysis request used correct coordinates
+        call_args = mock_analysis.call_args[0][0]
+        self.assertEqual(call_args.latitude, 40.7128)
+        self.assertEqual(call_args.longitude, -74.0060)
+
+    def test_chart_view_analysis_with_chart_error_still_fetches_analysis(self):
+        """Analysis data is still fetched even if chart generation fails."""
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        analysis_data = {
+            'planets': [{'name': 'Sun', 'longitude': 83.5, 'speed': 1.0}],
+            'houses': {'cusps': []},
+            'aspects': [],
+            'grand_trines': [],
+            'moon_void_of_course': None,
+            'metadata': {}
+        }
+        
+        with patch('natal.clients.generate_chart') as mock_chart, \
+             patch('natal.clients.get_chart_data') as mock_analysis:
+            mock_chart.side_effect = ChartAPIError("Chart API failed", status_code=500)
+            mock_analysis.return_value = analysis_data
+            
+            response = self.client.get(
+                reverse('natal:natal_set_chart', kwargs={'pk': self.natal_set.pk})
+            )
+        
+        self.assertEqual(response.status_code, 200)
+        # Chart error should be present
+        self.assertIn('error', response.context)
+        self.assertIn('Chart generation failed', response.context['error'])
+        # But analysis should still be fetched
+        self.assertIn('analysis', response.context)
+        self.assertEqual(response.context['analysis'], analysis_data)
+
