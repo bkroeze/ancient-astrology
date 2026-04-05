@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Social Network Login Failure" %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% trans "Social Network Login Failure" %}</h1>
+    
+    <p>{% trans "An error occurred while attempting to login via your social network account." %}</p>
+    
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>{% trans "Error:" %}</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    {% if extra_context %}
+    <div class="alert alert-info">
+        <strong>{% trans "Details:" %}</strong>
+        {% for key, value in extra_context.items %}
+            <br>{{ key }}: {{ value }}
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <p>
+        {% blocktrans %}If you believe this is an error, please contact support.{% endblocktrans %}
+    </p>
+    
+    <div class="auth-links">
+        <a href="{% url 'account_login' %}">{% trans "Try again" %}</a>
+    </div>
+</div>
+{% endblock %}

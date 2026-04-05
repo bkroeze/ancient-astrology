@@ -8,6 +8,9 @@ dj-database-url>=2.0
 
 # Auth
 django-allauth>=0.70
+requests>=2.31
+PyJWT>=2.8
+cryptography>=42.0
 
 # HTMX
 django-htmx>=1.20

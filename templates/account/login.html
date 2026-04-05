@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load socialaccount %}
 
 {% block head_title %}{% trans "Sign In" %}{% endblock %}
 
@@ -7,7 +8,25 @@
 <div class="card">
     <h1>{% trans "Sign In" %}</h1>
     
-    <p>{% blocktrans %}Don't have an account? Then please <a href="{{ signup_url }}">sign up</a>.{% endblocktrans %}</p>
+    {# Social login section #}
+    {% get_providers as socialaccount_providers %}
+    {% if socialaccount_providers %}
+    <div class="social-login-section">
+        <p class="social-login-intro">{% trans "Sign in with one of the following providers:" %}</p>
+        
+        <div class="social-providers">
+            {% for provider in socialaccount_providers %}
+                <div class="social-provider-btn">
+                    {% include "socialaccount/snippets/provider_list.html" with provider=provider process="login" %}
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div class="divider">
+            <span>{% trans "or sign in with email" %}</span>
+        </div>
+    </div>
+    {% endif %}
     
     <form class="login" method="post" action="{% url 'account_login' %}">
         {% csrf_token %}
@@ -23,6 +42,8 @@
     
     <div class="auth-links">
         <a href="{% url 'account_reset_password' %}">{% trans "Forgot your password?" %}</a>
+        <span class="separator">|</span>
+        <a href="{{ signup_url }}">{% trans "Create an account" %}</a>
     </div>
 </div>
 {% endblock %}

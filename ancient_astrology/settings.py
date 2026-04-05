@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',  # Google OAuth provider
     'django_htmx',
     # Local apps
     'users',
@@ -137,6 +138,50 @@ ACCOUNT_LOGOUT_REDIRECT_URL = '/'
 # Custom adapters
 ACCOUNT_ADAPTER = 'users.adapters.AccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'users.adapters.SocialAccountAdapter'
+
+# Social account settings
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-create account on social login
+SOCIALACCOUNT_EMAIL_REQUIRED = True  # Request email from provider
+SOCIALACCOUNT_ALLOW_SIGNUP = True  # Allow new signups via social account
+
+# Social account providers configuration
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        # For development, we don't require verified email
+        # In production, set to True to require verified email
+        'APPS_JSON': 'env:GOOGLE_OAUTH_CLIENT_SECRET_FILE',
+    }
+}
+
+# Logging configuration for debugging OAuth
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'allauth.socialaccount': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'allauth.socialaccount.providers.google': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+    },
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
