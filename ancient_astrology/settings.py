@@ -221,6 +221,11 @@ STATICFILES_DIRS = [
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Astro Clock API server URL for natal chart generation
+ASTRO_CLOCK_SERVER = env('ASTRO_API_URL', default='http://localhost:8086')
+
+# Chart generation timeout (seconds)
+CHART_API_TIMEOUT = 30
 
 # Security settings for production
 if not DEBUG:
