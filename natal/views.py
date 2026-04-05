@@ -422,7 +422,9 @@ class ChartExportAPIView(APIView):
             import base64
             chart_bytes = base64.b64decode(chart_bytes)
         
-        return Response(
+        # Use Django's HttpResponse for binary data to avoid DRF's JSON serialization
+        from django.http import HttpResponse
+        return HttpResponse(
             chart_bytes,
             content_type=content_type,
             headers={
