@@ -80,6 +80,9 @@ class PlaceCreateForm(PlaceForm):
 class NatalSetForm(forms.ModelForm):
     """
     ModelForm for creating and editing NatalSet instances.
+    
+    Uses inline location fields (location_name, latitude, longitude, timezone)
+    instead of a ForeignKey to Place for a streamlined single-form UX.
     """
     
     class Meta:
@@ -87,7 +90,10 @@ class NatalSetForm(forms.ModelForm):
         fields = [
             "name",
             "birth_datetime",
-            "place",
+            "location_name",
+            "latitude",
+            "longitude",
+            "timezone",
             "notes",
             "permission",
             "shared_with",
@@ -105,9 +111,32 @@ class NatalSetForm(forms.ModelForm):
                     "type": "datetime-local",
                 }
             ),
-            "place": forms.Select(
+            "location_name": forms.TextInput(
                 attrs={
                     "class": "form-control",
+                    "placeholder": "City, Country or Location Name",
+                }
+            ),
+            "latitude": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "e.g., 40.7128",
+                    "type": "number",
+                    "step": "0.000001",
+                }
+            ),
+            "longitude": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "e.g., -74.0060",
+                    "type": "number",
+                    "step": "0.000001",
+                }
+            ),
+            "timezone": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "e.g., America/New_York",
                 }
             ),
             "notes": forms.Textarea(
@@ -133,14 +162,30 @@ class NatalSetForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         
-        # Filter place choices to user's places
-        if self.user:
-            self.fields["place"].queryset = Place.objects.filter(
-                created_by=self.user
-            )
+        # Make location fields not required (chart API handles validation)
+        self.fields["location_name"].required = False
+        self.fields["latitude"].required = False
+        self.fields["longitude"].required = False
+        self.fields["timezone"].required = False
         
         # Hide shared_with unless permission is NAMED_GROUP
         self.fields["shared_with"].required = False
+    
+    def clean_latitude(self):
+        """Validate latitude is within valid range."""
+        lat = self.cleaned_data.get("latitude")
+        if lat is not None:
+            if lat < -90 or lat > 90:
+                raise forms.ValidationError("Latitude must be between -90 and 90 degrees.")
+        return lat
+    
+    def clean_longitude(self):
+        """Validate longitude is within valid range."""
+        lon = self.cleaned_data.get("longitude")
+        if lon is not None:
+            if lon < -180 or lon > 180:
+                raise forms.ValidationError("Longitude must be between -180 and 180 degrees.")
+        return lon
     
     def clean(self):
         """Validate shared_with is only used with NAMED_GROUP permission."""
