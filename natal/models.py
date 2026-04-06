@@ -77,11 +77,40 @@ class NatalSet(models.Model):
     birth_datetime = models.DateTimeField(
         help_text="Birth date and time"
     )
+    # Inline location fields (place FK preserved for data migration in T02)
+    location_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Birth location name"
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Latitude in decimal degrees (-90 to 90)"
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Longitude in decimal degrees (-180 to 180)"
+    )
+    timezone = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="IANA timezone identifier (e.g., 'America/New_York')"
+    )
     place = models.ForeignKey(
         Place,
         on_delete=models.CASCADE,
         related_name="natal_sets",
-        help_text="Birth location"
+        help_text="Birth location",
+        null=True,
+        blank=True
     )
     notes = models.TextField(
         blank=True,
