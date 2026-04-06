@@ -51,16 +51,16 @@
                     <dd>{{ natal_set.name }}</dd>
                     
                     <dt>Latitude</dt>
-                    <dd>{{ natal_set.place.latitude }}</dd>
+                    <dd>{{ natal_set.latitude|default:"—" }}</dd>
                     
                     <dt>Longitude</dt>
-                    <dd>{{ natal_set.place.longitude }}</dd>
+                    <dd>{{ natal_set.longitude|default:"—" }}</dd>
                     
                     <dt>Birth Date/Time</dt>
                     <dd>{{ natal_set.birth_datetime|date:"F j, Y" }} at {{ natal_set.birth_datetime|time:"g:i A" }}</dd>
                     
                     <dt>Timezone</dt>
-                    <dd>{{ natal_set.place.timezone }}</dd>
+                    <dd>{{ natal_set.timezone|default:"—" }}</dd>
                 </dl>
             </div>
             {% endif %}

@@ -13,7 +13,7 @@
         
         <div class="detail-summary">
             <p><strong>Birth Date:</strong> {{ natal_set.birth_datetime|date:"F j, Y" }}</p>
-            <p><strong>Location:</strong> {{ natal_set.place.name }}</p>
+            <p><strong>Location:</strong> {{ natal_set.location_name|default:"—" }}</p>
             <p><strong>Permission:</strong> {{ natal_set.get_permission_display }}</p>
         </div>
 

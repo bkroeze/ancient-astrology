@@ -156,7 +156,7 @@ class NatalSetModelTest(TestCase):
     """Tests for the NatalSet model."""
 
     def setUp(self):
-        """Create test users and place for NatalSet creation."""
+        """Create test users for NatalSet creation."""
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -167,13 +167,6 @@ class NatalSetModelTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
 
     def test_create_natal_set(self):
         """NatalSet can be created with valid data."""
@@ -181,7 +174,6 @@ class NatalSetModelTest(TestCase):
             name='My Birth Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -190,7 +182,7 @@ class NatalSetModelTest(TestCase):
         )
         self.assertEqual(natal_set.name, 'My Birth Chart')
         self.assertEqual(natal_set.owner, self.user)
-        self.assertEqual(natal_set.place, self.place)
+        self.assertEqual(natal_set.location_name, 'New York')
         self.assertEqual(natal_set.permission, NatalSet.Permission.PRIVATE)
 
     def test_natal_set_str_representation(self):
@@ -199,7 +191,6 @@ class NatalSetModelTest(TestCase):
             name='Test Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -221,7 +212,6 @@ class NatalSetModelTest(TestCase):
             name='Private Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -237,7 +227,6 @@ class NatalSetModelTest(TestCase):
             name='Public Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -255,7 +244,6 @@ class NatalSetModelTest(TestCase):
             name='Group Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -272,7 +260,6 @@ class NatalSetModelTest(TestCase):
             name='Group Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -288,7 +275,6 @@ class NatalSetModelTest(TestCase):
             name='Private Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -320,13 +306,6 @@ class NatalSetListViewTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
 
     def test_list_requires_login(self):
         """List view should redirect anonymous users to login."""
@@ -347,7 +326,6 @@ class NatalSetListViewTest(TestCase):
             name='My Private Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -364,7 +342,6 @@ class NatalSetListViewTest(TestCase):
             name='Other User Private',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -381,7 +358,6 @@ class NatalSetListViewTest(TestCase):
             name='Public Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -402,13 +378,6 @@ class NatalSetCreateViewTest(TestCase):
             username='testuser',
             email='test@example.com',
             password='testpass123'
-        )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
         )
 
     def test_create_requires_login(self):
@@ -495,18 +464,10 @@ class NatalSetDetailViewTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='Private Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -546,7 +507,6 @@ class NatalSetDetailViewTest(TestCase):
             name='Public Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -577,18 +537,10 @@ class NatalSetUpdateViewTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -648,18 +600,10 @@ class NatalSetDeleteViewTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -717,19 +661,11 @@ class NatalSetPermissionTest(TestCase):
             email='user3@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         # Create one of each type
         self.private_set = NatalSet.objects.create(
             name='Private Set',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -740,7 +676,6 @@ class NatalSetPermissionTest(TestCase):
             name='Public Set',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -751,7 +686,6 @@ class NatalSetPermissionTest(TestCase):
             name='Group Set',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -814,13 +748,6 @@ class NatalSetHTMXTest(TestCase):
             email='test@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
 
     def test_list_htmx_request(self):
         """HTMX request to list should return partial template."""
@@ -840,7 +767,6 @@ class NatalSetHTMXTest(TestCase):
             data={
                 'name': 'HTMX Create Test',
                 'birth_datetime': '1990-06-15T12:00',
-                'place': self.place.pk,
                 'permission': 'private',
             }
         )
@@ -857,7 +783,6 @@ class NatalSetHTMXTest(TestCase):
             data={
                 'name': '',  # Required field missing
                 'birth_datetime': '1990-06-15T12:00',
-                'place': self.place.pk,
                 'permission': 'private',
             }
         )
@@ -886,18 +811,10 @@ class NatalSetNegativeTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -1247,18 +1164,10 @@ class ChartViewTest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -1269,7 +1178,6 @@ class ChartViewTest(TestCase):
             name='Public Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -1519,7 +1427,7 @@ class ChartViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         context = response.context
         self.assertEqual(context['natal_set'].name, 'My Chart')
-        self.assertEqual(context['natal_set'].place.name, 'New York')
+        self.assertEqual(context['natal_set'].location_name, 'New York')
 
 
 class NatalSetDetailHTMXChartTest(TestCase):
@@ -1533,18 +1441,10 @@ class NatalSetDetailHTMXChartTest(TestCase):
             email='test@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -1762,18 +1662,10 @@ class ChartViewAnalysisTest(TestCase):
             email='test@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -1935,18 +1827,10 @@ class AnalysisDisplayTest(TestCase):
             email='test@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.user
-        )
         self.natal_set = NatalSet.objects.create(
             name='My Chart',
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -2285,7 +2169,7 @@ class ChartExportAPITest(TestCase):
     """Tests for the Chart Export API endpoint."""
 
     def setUp(self):
-        """Set up test users, places, and natal sets."""
+        """Set up test users and natal sets."""
         self.client = Client()
         self.owner = User.objects.create_user(
             username='owner',
@@ -2297,18 +2181,10 @@ class ChartExportAPITest(TestCase):
             email='other@example.com',
             password='testpass123'
         )
-        self.place = Place.objects.create(
-            name='New York',
-            latitude=Decimal('40.712800'),
-            longitude=Decimal('-74.006000'),
-            timezone='America/New_York',
-            created_by=self.owner
-        )
         self.private_set = NatalSet.objects.create(
             name='Private Chart',
             owner=self.owner,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -2319,7 +2195,6 @@ class ChartExportAPITest(TestCase):
             name='Public Chart',
             owner=self.owner,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),
@@ -2330,7 +2205,6 @@ class ChartExportAPITest(TestCase):
             name='Group Chart',
             owner=self.owner,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
-            place=self.place,
             location_name='New York',
             latitude=Decimal('40.712800'),
             longitude=Decimal('-74.006000'),

@@ -104,14 +104,6 @@ class NatalSet(models.Model):
         default="",
         help_text="IANA timezone identifier (e.g., 'America/New_York')"
     )
-    place = models.ForeignKey(
-        Place,
-        on_delete=models.CASCADE,
-        related_name="natal_sets",
-        help_text="Birth location",
-        null=True,
-        blank=True
-    )
     notes = models.TextField(
         blank=True,
         default="",

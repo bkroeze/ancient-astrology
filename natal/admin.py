@@ -34,11 +34,11 @@ class PlaceAdmin(admin.ModelAdmin):
 class NatalSetAdmin(admin.ModelAdmin):
     """Admin configuration for NatalSet model."""
     
-    list_display = ["name", "owner", "birth_datetime", "place", "permission", "created_at"]
+    list_display = ["name", "owner", "birth_datetime", "location_name", "permission", "created_at"]
     list_filter = ["permission", "created_at", "birth_datetime"]
-    search_fields = ["name", "owner__email", "place__name"]
+    search_fields = ["name", "owner__email", "location_name"]
     readonly_fields = ["created_at", "updated_at"]
-    raw_id_fields = ["owner", "place"]
+    raw_id_fields = ["owner"]
     filter_horizontal = ["shared_with"]
     
     fieldsets = [
@@ -51,7 +51,7 @@ class NatalSetAdmin(admin.ModelAdmin):
         (
             "Location",
             {
-                "fields": ["place"],
+                "fields": ["location_name", "latitude", "longitude", "timezone"],
             }
         ),
         (
