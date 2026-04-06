@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ page_title|default:"Natal Set" }} - Ancient Astrology{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/location-autocomplete.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -41,50 +46,70 @@
             {% endif %}
         </div>
 
-        <div class="form-group">
-            <label for="{{ form.location_name.id_for_label }}">{{ form.location_name.label }}</label>
-            {{ form.location_name }}
-            {% if form.location_name.errors %}
-                <div class="error-message">{{ form.location_name.errors.0 }}</div>
-            {% endif %}
-            {% if form.location_name.help_text %}
-                <div class="help-text">{{ form.location_name.help_text }}</div>
-            {% endif %}
-        </div>
-
-        <div class="form-row">
-            <div class="form-group">
-                <label for="{{ form.latitude.id_for_label }}">{{ form.latitude.label }}</label>
-                {{ form.latitude }}
-                {% if form.latitude.errors %}
-                    <div class="error-message">{{ form.latitude.errors.0 }}</div>
-                {% endif %}
-                {% if form.latitude.help_text %}
-                    <div class="help-text">{{ form.latitude.help_text }}</div>
-                {% endif %}
+        <div class="location-section">
+            <h3>Location</h3>
+            
+            <div class="location-search-container">
+                <label for="location-search">Search for a location</label>
+                <div class="location-search-wrapper">
+                    <input 
+                        type="text" 
+                        id="location-search" 
+                        placeholder="e.g., New York, London, Tokyo..."
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                    <span class="location-search-hint">Type to search or enter details manually below</span>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="{{ form.longitude.id_for_label }}">{{ form.longitude.label }}</label>
-                {{ form.longitude }}
-                {% if form.longitude.errors %}
-                    <div class="error-message">{{ form.longitude.errors.0 }}</div>
-                {% endif %}
-                {% if form.longitude.help_text %}
-                    <div class="help-text">{{ form.longitude.help_text }}</div>
-                {% endif %}
-            </div>
-        </div>
+            <div class="location-fields">
+                <div class="form-group">
+                    <label for="{{ form.location_name.id_for_label }}">{{ form.location_name.label }}</label>
+                    {{ form.location_name }}
+                    {% if form.location_name.errors %}
+                        <div class="error-message">{{ form.location_name.errors.0 }}</div>
+                    {% endif %}
+                    {% if form.location_name.help_text %}
+                        <div class="help-text">{{ form.location_name.help_text }}</div>
+                    {% endif %}
+                </div>
 
-        <div class="form-group">
-            <label for="{{ form.timezone.id_for_label }}">{{ form.timezone.label }}</label>
-            {{ form.timezone }}
-            {% if form.timezone.errors %}
-                <div class="error-message">{{ form.timezone.errors.0 }}</div>
-            {% endif %}
-            {% if form.timezone.help_text %}
-                <div class="help-text">{{ form.timezone.help_text }}</div>
-            {% endif %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.latitude.id_for_label }}">{{ form.latitude.label }}</label>
+                        {{ form.latitude }}
+                        {% if form.latitude.errors %}
+                            <div class="error-message">{{ form.latitude.errors.0 }}</div>
+                        {% endif %}
+                        {% if form.latitude.help_text %}
+                            <div class="help-text">{{ form.latitude.help_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.longitude.id_for_label }}">{{ form.longitude.label }}</label>
+                        {{ form.longitude }}
+                        {% if form.longitude.errors %}
+                            <div class="error-message">{{ form.longitude.errors.0 }}</div>
+                        {% endif %}
+                        {% if form.longitude.help_text %}
+                            <div class="help-text">{{ form.longitude.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.timezone.id_for_label }}">{{ form.timezone.label }}</label>
+                    {{ form.timezone }}
+                    {% if form.timezone.errors %}
+                        <div class="error-message">{{ form.timezone.errors.0 }}</div>
+                    {% endif %}
+                    {% if form.timezone.help_text %}
+                        <div class="help-text">{{ form.timezone.help_text }}</div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="form-group">
@@ -151,6 +176,212 @@ document.addEventListener('DOMContentLoaded', function() {
     permissionSelect.addEventListener('change', toggleSharedWith);
     // Initialize on page load
     toggleSharedWith();
+
+    // Initialize location autocomplete
+    const locationSearch = document.getElementById('location-search');
+    const locationNameInput = document.querySelector('#{{ form.location_name.id_for_label }}');
+    const latitudeInput = document.querySelector('#{{ form.latitude.id_for_label }}');
+    const longitudeInput = document.querySelector('#{{ form.longitude.id_for_label }}');
+    const timezoneInput = document.querySelector('#{{ form.timezone.id_for_label }}');
+    const locationFieldsSection = document.querySelector('.location-fields');
+
+    if (locationSearch && locationNameInput) {
+        // Track whether fields were auto-populated
+        let autoPopulated = false;
+
+        const autocomplete = new LocationAutocomplete({
+            searchInput: '#location-search',
+            onSelect: function(location) {
+                // Populate the form fields
+                locationNameInput.value = location.name || '';
+                latitudeInput.value = location.lat !== undefined ? location.lat : '';
+                longitudeInput.value = location.lon !== undefined ? location.lon : '';
+                timezoneInput.value = location.timezone || '';
+
+                // Mark fields as auto-populated
+                autoPopulated = true;
+                locationFieldsSection.classList.add('auto-populated');
+
+                // Clear the search input (the name is now in location_name)
+                locationSearch.value = '';
+            }
+        });
+
+        // Add visual feedback when fields are manually edited after auto-population
+        [locationNameInput, latitudeInput, longitudeInput, timezoneInput].forEach(function(input) {
+            if (input) {
+                input.addEventListener('input', function() {
+                    if (autoPopulated) {
+                        locationFieldsSection.classList.remove('auto-populated');
+                    }
+                });
+            }
+        });
+    }
 });
 </script>
+
+<style>
+/* Location Search Section */
+.location-section {
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.location-section h3 {
+    margin: 0 0 1rem 0;
+    color: #1a1a2e;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.location-search-container {
+    margin-bottom: 1.5rem;
+}
+
+.location-search-container label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.location-search-wrapper {
+    position: relative;
+}
+
+#location-search {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#location-search:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+
+.location-search-hint {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: #888;
+}
+
+/* Location Fields */
+.location-fields {
+    padding-top: 1rem;
+    border-top: 1px dashed #ddd;
+    transition: opacity 0.2s ease;
+}
+
+.location-fields.auto-populated {
+    background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(67, 97, 238, 0.02) 100%);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: -1rem;
+}
+
+.location-fields.auto-populated::before {
+    content: 'Location auto-populated from search';
+    display: block;
+    font-size: 0.75rem;
+    color: #4361ee;
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+}
+
+/* Autocomplete Dropdown Styles */
+.location-autocomplete-results {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    min-width: 100%;
+    box-sizing: border-box;
+    margin-top: 4px;
+}
+
+.location-autocomplete-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    transition: background-color 0.15s ease;
+}
+
+.location-autocomplete-option:last-child {
+    border-bottom: none;
+}
+
+.location-autocomplete-option:hover {
+    background-color: #f5f7fa;
+}
+
+.location-autocomplete-option.selected {
+    background-color: #e3f2fd;
+    font-weight: 500;
+}
+
+.location-autocomplete-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.location-autocomplete-name {
+    font-weight: 500;
+    color: #1a1a2e;
+}
+
+.location-autocomplete-detail {
+    font-size: 0.8125rem;
+    color: #666;
+}
+
+.location-autocomplete-coords {
+    font-size: 0.75rem;
+    color: #999;
+    white-space: nowrap;
+}
+
+.location-autocomplete-empty,
+.location-autocomplete-error {
+    padding: 12px;
+    color: #666;
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
+.location-autocomplete-error {
+    color: #dc2626;
+    font-style: normal;
+}
+
+/* Loading state */
+#location-search.location-autocomplete-loading {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234361ee' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10' opacity='0.25'/%3E%3Cpath d='M12 2a10 10 0 0 1 10 10'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    padding-right: 40px;
+}
+</style>
 {% endblock %}
