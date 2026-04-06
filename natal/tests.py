@@ -2428,3 +2428,303 @@ class ChartExportAPITest(TestCase):
         self.assertIn('.houses-table', css_content)
         self.assertIn('.aspects-table', css_content)
 
+
+# =============================================================================
+# GEOCODING CLIENT TESTS
+# =============================================================================
+
+from natal.clients import (
+    GeocodingError,
+    GeocodingRequest,
+    GeocodingResult,
+    geocode_location,
+)
+
+
+class GeocodingClientTest(TestCase):
+    """Tests for the Photon geocoding client."""
+
+    def test_geocoding_request_dataclass(self):
+        """GeocodingRequest stores parameters correctly."""
+        request = GeocodingRequest(query='New York', limit=5)
+        self.assertEqual(request.query, 'New York')
+        self.assertEqual(request.limit, 5)
+
+    def test_geocoding_request_defaults(self):
+        """GeocodingRequest has correct default limit."""
+        request = GeocodingRequest(query='London')
+        self.assertEqual(request.limit, 5)
+
+    def test_geocoding_result_dataclass(self):
+        """GeocodingResult stores location data correctly."""
+        result = GeocodingResult(
+            name='New York, NY, USA',
+            latitude=40.7128,
+            longitude=-74.0060,
+            timezone='America/New_York',
+            country='United States of America',
+            state='New York'
+        )
+        self.assertEqual(result.name, 'New York, NY, USA')
+        self.assertEqual(result.latitude, 40.7128)
+        self.assertEqual(result.longitude, -74.0060)
+        self.assertEqual(result.timezone, 'America/New_York')
+        self.assertEqual(result.country, 'United States of America')
+        self.assertEqual(result.state, 'New York')
+
+    def test_geocoding_result_optional_fields(self):
+        """GeocodingResult handles optional fields as None."""
+        result = GeocodingResult(
+            name='Unknown Place',
+            latitude=0.0,
+            longitude=0.0,
+            timezone=None,
+            country=None,
+            state=None
+        )
+        self.assertIsNone(result.timezone)
+        self.assertIsNone(result.country)
+        self.assertIsNone(result.state)
+
+    def test_geocoding_error_with_status(self):
+        """GeocodingError stores error information with status code."""
+        error = GeocodingError(
+            message="API rate limit exceeded",
+            status_code=429
+        )
+        self.assertEqual(str(error), "GeocodingError(429): API rate limit exceeded")
+        self.assertEqual(error.status_code, 429)
+        self.assertEqual(error.error_message, "API rate limit exceeded")
+
+    def test_geocoding_error_without_status(self):
+        """GeocodingError works without status code."""
+        error = GeocodingError(message="Connection failed")
+        self.assertEqual(error.status_code, None)
+        self.assertEqual(str(error), "GeocodingError: Connection failed")
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_success(self, mock_get):
+        """geocode_location returns list of results on success."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'New York',
+                        'country': 'United States',
+                        'state': 'New York',
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [-74.006, 40.7128]
+                    }
+                },
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'New York Mills',
+                        'country': 'United States',
+                        'state': 'Minnesota',
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [-95.378, 46.519]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='New York', limit=5)
+        results = geocode_location(request)
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0].name, 'New York')
+        self.assertEqual(results[0].latitude, 40.7128)
+        self.assertEqual(results[0].longitude, -74.006)
+        self.assertEqual(results[0].country, 'United States')
+        self.assertEqual(results[0].state, 'New York')
+        self.assertEqual(results[1].name, 'New York Mills')
+        self.assertEqual(results[1].latitude, 46.519)
+        mock_get.assert_called_once()
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_with_timezone(self, mock_get):
+        """geocode_location extracts timezone from extent property."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Berlin',
+                        'country': 'Germany',
+                        'state': None,
+                        'extent': {
+                            'timezone': 'Europe/Berlin'
+                        }
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [13.405, 52.52]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='Berlin')
+        results = geocode_location(request)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].timezone, 'Europe/Berlin')
+        self.assertEqual(results[0].name, 'Berlin')
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_empty_results(self, mock_get):
+        """geocode_location returns empty list when no matches found."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='xyznonexistent123')
+        results = geocode_location(request)
+
+        self.assertEqual(len(results), 0)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_api_error(self, mock_get):
+        """geocode_location raises GeocodingError on API error."""
+        mock_response = MagicMock()
+        mock_response.ok = False
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='New York')
+
+        with self.assertRaises(GeocodingError) as context:
+            geocode_location(request)
+
+        self.assertEqual(context.exception.status_code, 500)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_timeout(self, mock_get):
+        """geocode_location raises GeocodingError on timeout."""
+        import requests
+        mock_get.side_effect = requests.Timeout()
+
+        request = GeocodingRequest(query='New York')
+
+        with self.assertRaises(GeocodingError) as context:
+            geocode_location(request)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn('timed out', context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_connection_error(self, mock_get):
+        """geocode_location raises GeocodingError on connection error."""
+        import requests
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
+
+        request = GeocodingRequest(query='New York')
+
+        with self.assertRaises(GeocodingError) as context:
+            geocode_location(request)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn('Could not connect', context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_uses_correct_url(self, mock_get):
+        """geocode_location calls the correct Photon API endpoint."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {'type': 'FeatureCollection', 'features': []}
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='Paris', limit=3)
+        geocode_location(request)
+
+        call_args = mock_get.call_args
+        called_url = call_args[0][0]
+        called_params = call_args[1]['params']
+
+        # Should call /api/ with query and limit params
+        self.assertIn('/api/', called_url)
+        self.assertEqual(called_params['q'], 'Paris')
+        self.assertEqual(called_params['limit'], 3)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_handles_missing_optional_fields(self, mock_get):
+        """geocode_location handles features with missing optional fields."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Remote Place'
+                        # country, state, extent missing
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [0.0, 0.0]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='Remote')
+        results = geocode_location(request)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].name, 'Remote Place')
+        self.assertIsNone(results[0].country)
+        self.assertIsNone(results[0].state)
+        self.assertIsNone(results[0].timezone)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_handles_null_extent(self, mock_get):
+        """geocode_location handles null extent in properties."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Test Place',
+                        'country': 'Test Country',
+                        'state': None,
+                        'extent': None
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [10.0, 20.0]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='Test')
+        results = geocode_location(request)
+
+        self.assertEqual(len(results), 1)
+        self.assertIsNone(results[0].timezone)
+

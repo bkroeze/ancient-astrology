@@ -183,6 +183,169 @@ class AnalysisRequest:
     house_system: str = 'P'
 
 
+# =============================================================================
+# Geocoding Client (Photon API)
+# =============================================================================
+
+class GeocodingError(Exception):
+    """
+    Exception raised when geocoding API requests fail.
+    
+    Attributes:
+        status_code: HTTP status code from the API response (None for network/timeout errors)
+        error_message: User-friendly error message
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.error_message = message
+    
+    def __str__(self) -> str:
+        if self.status_code:
+            return f"GeocodingError({self.status_code}): {self.error_message}"
+        return f"GeocodingError: {self.error_message}"
+
+
+@dataclass
+class GeocodingRequest:
+    """
+    Request parameters for location geocoding.
+    
+    Attributes:
+        query: Search query string (location name)
+        limit: Maximum number of results to return (default: 5)
+    """
+    query: str
+    limit: int = 5
+
+
+@dataclass
+class GeocodingResult:
+    """
+    Result from a geocoding query.
+    
+    Attributes:
+        name: Full location name
+        latitude: Geographic latitude
+        longitude: Geographic longitude
+        timezone: IANA timezone string (e.g., 'America/New_York')
+        country: Country name
+        state: State or region name
+    """
+    name: str
+    latitude: float
+    longitude: float
+    timezone: str | None
+    country: str | None
+    state: str | None
+
+
+def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
+    """
+    Search for locations by name using the Photon geocoding API.
+    
+    Args:
+        request: GeocodingRequest containing the search query
+        
+    Returns:
+        list[GeocodingResult]: Matching locations with coordinates and metadata
+        
+    Raises:
+        GeocodingError: If the API returns an error or request fails
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+    
+    base_url = getattr(settings, 'PHOTON_API_URL', 'https://photon.komoot.io')
+    timeout = getattr(settings, 'GEOCODING_TIMEOUT', 10)
+    
+    api_url = urljoin(base_url.rstrip('/') + '/', 'api/')
+    params = {
+        'q': request.query,
+        'limit': request.limit,
+    }
+    
+    _log.info("Geocoding location: query=%s, limit=%d", request.query, request.limit)
+    
+    try:
+        response = requests.get(
+            api_url,
+            params=params,
+            timeout=timeout,
+            headers={'Accept': 'application/json'}
+        )
+        
+        if not response.ok:
+            try:
+                error_detail = response.json().get('error', response.text)
+            except ValueError:
+                error_detail = response.text or 'Unknown error'
+            
+            _log.error(
+                "Geocoding API error: status=%s, detail=%s",
+                response.status_code,
+                error_detail
+            )
+            raise GeocodingError(
+                message=f"Geocoding failed: {error_detail}",
+                status_code=response.status_code,
+            )
+        
+        data = response.json()
+        results: list[GeocodingResult] = []
+        
+        # Photon returns GeoJSON FeatureCollection
+        features = data.get('features', [])
+        for feature in features:
+            props = feature.get('properties', {})
+            geometry = feature.get('geometry', {})
+            coords = geometry.get('coordinates', [])
+            
+            # coords is [longitude, latitude]
+            longitude = coords[0] if len(coords) > 0 else 0.0
+            latitude = coords[1] if len(coords) > 1 else 0.0
+            
+            # Extract optional timezone from extent
+            extent = props.get('extent', {})
+            timezone = extent.get('timezone') if isinstance(extent, dict) else None
+            
+            result = GeocodingResult(
+                name=props.get('name', ''),
+                latitude=latitude,
+                longitude=longitude,
+                timezone=timezone,
+                country=props.get('country'),
+                state=props.get('state'),
+            )
+            results.append(result)
+        
+        _log.info(
+            "Geocoding complete: query=%s, results=%d",
+            request.query,
+            len(results)
+        )
+        return results
+        
+    except requests.Timeout:
+        _log.error("Geocoding API timed out after %s seconds", timeout)
+        raise GeocodingError(
+            message=f"Geocoding timed out after {timeout} seconds",
+        )
+    except requests.ConnectionError as e:
+        _log.error("Geocoding API connection error: %s", str(e))
+        raise GeocodingError(
+            message=f"Could not connect to geocoding server: {base_url}",
+        )
+    except requests.RequestException as e:
+        _log.error("Geocoding API request failed: %s", str(e))
+        raise GeocodingError(message=str(e))
+
+
 def get_chart_data(request: AnalysisRequest) -> dict[str, Any]:
     """
     Fetch chart analysis data (planets, houses, aspects) from the Astro Clock API.
