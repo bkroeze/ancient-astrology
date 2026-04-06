@@ -42,7 +42,7 @@ class PermissionFilteredListMixin:
         # This is more explicit and maintainable than a complex Q filter
         return queryset.filter(
             models_can_view_filter(user)
-        ).select_related('owner', 'place').distinct()
+        ).select_related('owner').distinct()
 
 
 def models_can_view_filter(user):
@@ -85,7 +85,7 @@ class NatalSetListView(LoginRequiredMixin, PermissionFilteredListMixin, ListView
             Q(owner=user) |
             Q(permission=NatalSet.Permission.PUBLIC) |
             (Q(permission=NatalSet.Permission.NAMED_GROUP) & Q(shared_with=user))
-        ).select_related('owner', 'place').order_by('-created_at')
+        ).select_related('owner').order_by('-created_at')
 
 
 class NatalSetCreateView(LoginRequiredMixin, CreateView):
@@ -135,7 +135,7 @@ class NatalSetDetailView(LoginRequiredMixin, DetailView):
             Q(owner=user) |
             Q(permission=NatalSet.Permission.PUBLIC) |
             (Q(permission=NatalSet.Permission.NAMED_GROUP) & Q(shared_with=user))
-        ).select_related('owner', 'place')
+        ).select_related('owner')
     
     def get_object(self, queryset=None):
         """Get the object and verify permission."""
@@ -241,7 +241,7 @@ class ChartView(LoginRequiredMixin, DetailView):
             Q(owner=user) |
             Q(permission=NatalSet.Permission.PUBLIC) |
             (Q(permission=NatalSet.Permission.NAMED_GROUP) & Q(shared_with=user))
-        ).select_related('owner', 'place')
+        ).select_related('owner')
     
     def get_object(self, queryset=None):
         """Get the natal set and verify permission."""
@@ -265,8 +265,8 @@ class ChartView(LoginRequiredMixin, DetailView):
             # Natal set chart: /natal/<pk>/chart/
             context['natal_set'] = natal_set
             chart_params = {
-                'latitude': float(natal_set.place.latitude),
-                'longitude': float(natal_set.place.longitude),
+                'latitude': float(natal_set.latitude),
+                'longitude': float(natal_set.longitude),
                 'datetime': natal_set.birth_datetime,
                 'name': natal_set.name,
             }
@@ -367,7 +367,7 @@ class ChartExportAPIView(APIView):
         
         # Get natal set and check existence
         try:
-            natal_set = NatalSet.objects.select_related('place').get(pk=pk)
+            natal_set = NatalSet.objects.get(pk=pk)
         except NatalSet.DoesNotExist:
             return Response(
                 {'error': 'Natal set not found'},
@@ -391,8 +391,8 @@ class ChartExportAPIView(APIView):
         
         # Build chart request
         chart_request = ChartRequest(
-            latitude=float(natal_set.place.latitude),
-            longitude=float(natal_set.place.longitude),
+            latitude=float(natal_set.latitude),
+            longitude=float(natal_set.longitude),
             datetime=natal_set.birth_datetime,
             format=format_param,
             name=natal_set.name,

@@ -182,6 +182,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.assertEqual(natal_set.name, 'My Birth Chart')
@@ -196,6 +200,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.assertEqual(str(natal_set), f'Test Chart ({self.user})')
@@ -214,6 +222,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.assertTrue(natal_set.can_view(self.user))
@@ -226,6 +238,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PUBLIC
         )
         self.assertTrue(natal_set.can_view(self.user))
@@ -240,6 +256,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.NAMED_GROUP
         )
         natal_set.shared_with.add(self.other_user)
@@ -253,6 +273,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.NAMED_GROUP
         )
         self.assertTrue(natal_set.can_view(self.user))
@@ -265,6 +289,10 @@ class NatalSetModelTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.assertTrue(natal_set.can_edit(self.user))
@@ -320,6 +348,10 @@ class NatalSetListViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         response = self.client.get(reverse('natal:natal_set_list'))
@@ -333,6 +365,10 @@ class NatalSetListViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         response = self.client.get(reverse('natal:natal_set_list'))
@@ -346,6 +382,10 @@ class NatalSetListViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PUBLIC
         )
         response = self.client.get(reverse('natal:natal_set_list'))
@@ -392,7 +432,10 @@ class NatalSetCreateViewTest(TestCase):
         response = self.client.post(reverse('natal:natal_set_create'), {
             'name': 'New Birth Chart',
             'birth_datetime': '1990-06-15T12:00',
-            'place': self.place.pk,
+            'location_name': 'New York',
+            'latitude': '40.712800',
+            'longitude': '-74.006000',
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
         # Should redirect to list on success
@@ -407,7 +450,10 @@ class NatalSetCreateViewTest(TestCase):
         response = self.client.post(reverse('natal:natal_set_create'), {
             'name': '',  # Required field missing
             'birth_datetime': '1990-06-15T12:00',
-            'place': self.place.pk,
+            'location_name': 'New York',
+            'latitude': '40.712800',
+            'longitude': '-74.006000',
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
         self.assertEqual(response.status_code, 200)
@@ -422,7 +468,10 @@ class NatalSetCreateViewTest(TestCase):
             data={
                 'name': 'HTMX Birth Chart',
                 'birth_datetime': '1990-06-15T12:00',
-                'place': self.place.pk,
+                'location_name': 'New York',
+                'latitude': '40.712800',
+                'longitude': '-74.006000',
+                'timezone': 'America/New_York',
                 'permission': 'private',
             }
         )
@@ -458,6 +507,10 @@ class NatalSetDetailViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
 
@@ -494,6 +547,10 @@ class NatalSetDetailViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PUBLIC
         )
         self.client.login(email='other@example.com', password='testpass123')
@@ -532,6 +589,10 @@ class NatalSetUpdateViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
 
@@ -550,7 +611,10 @@ class NatalSetUpdateViewTest(TestCase):
             {
                 'name': 'Updated Chart Name',
                 'birth_datetime': '1990-06-15T12:00',
-                'place': self.place.pk,
+                'location_name': 'New York',
+                'latitude': '40.712800',
+                'longitude': '-74.006000',
+                'timezone': 'America/New_York',
                 'permission': 'private',
             }
         )
@@ -596,6 +660,10 @@ class NatalSetDeleteViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
 
@@ -662,6 +730,10 @@ class NatalSetPermissionTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.public_set = NatalSet.objects.create(
@@ -669,6 +741,10 @@ class NatalSetPermissionTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PUBLIC
         )
         self.named_group_set = NatalSet.objects.create(
@@ -676,6 +752,10 @@ class NatalSetPermissionTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.NAMED_GROUP
         )
         self.named_group_set.shared_with.add(self.user2)
@@ -818,6 +898,10 @@ class NatalSetNegativeTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
 
@@ -827,7 +911,9 @@ class NatalSetNegativeTest(TestCase):
         response = self.client.post(reverse('natal:natal_set_create'), {
             'name': 'Invalid Date Test',
             'birth_datetime': 'not-a-date',
-            'place': self.place.pk,
+            'latitude': '40.7128',
+            'longitude': '-74.0060',
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
         self.assertEqual(response.status_code, 200)
@@ -840,7 +926,9 @@ class NatalSetNegativeTest(TestCase):
         # Missing name
         response = self.client.post(reverse('natal:natal_set_create'), {
             'birth_datetime': '1990-06-15T12:00',
-            'place': self.place.pk,
+            'latitude': '40.7128',
+            'longitude': '-74.0060',
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
         self.assertEqual(response.status_code, 200)
@@ -848,18 +936,20 @@ class NatalSetNegativeTest(TestCase):
         # Missing birth_datetime
         response = self.client.post(reverse('natal:natal_set_create'), {
             'name': 'Missing Date Test',
-            'place': self.place.pk,
+            'latitude': '40.7128',
+            'longitude': '-74.0060',
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
         self.assertEqual(response.status_code, 200)
         
-        # Missing place
+        # Location fields are optional, so this should succeed (redirect to 302)
         response = self.client.post(reverse('natal:natal_set_create'), {
-            'name': 'Missing Place Test',
+            'name': 'Missing Location Test',
             'birth_datetime': '1990-06-15T12:00',
             'permission': 'private',
         })
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_tampering_other_users_set_returns_404(self):
         """Tampering with other users' set should return 404."""
@@ -870,36 +960,61 @@ class NatalSetNegativeTest(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_nonexistent_place_rejected(self):
-        """Non-existent place ID should be rejected."""
+    def test_invalid_latitude_rejected(self):
+        """Invalid latitude values should be rejected."""
         self.client.login(email='test@example.com', password='testpass123')
+        
+        # Out of range latitude (> 90)
         response = self.client.post(reverse('natal:natal_set_create'), {
-            'name': 'Bad Place Test',
+            'name': 'Bad Latitude Test',
             'birth_datetime': '1990-06-15T12:00',
-            'place': 99999,  # Non-existent
+            'latitude': '95.0000',  # Invalid: > 90
+            'longitude': '-74.0060',
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(NatalSet.objects.filter(name='Bad Place Test').exists())
+        self.assertFalse(NatalSet.objects.filter(name='Bad Latitude Test').exists())
+        
+        # Out of range latitude (< -90)
+        response = self.client.post(reverse('natal:natal_set_create'), {
+            'name': 'Bad Latitude Test 2',
+            'birth_datetime': '1990-06-15T12:00',
+            'latitude': '-95.0000',  # Invalid: < -90
+            'longitude': '-74.0060',
+            'timezone': 'America/New_York',
+            'permission': 'private',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(NatalSet.objects.filter(name='Bad Latitude Test 2').exists())
 
-    def test_cannot_create_set_with_other_users_place(self):
-        """User cannot create natal set with another user's place."""
-        other_user_place = Place.objects.create(
-            name='Other User Place',
-            latitude=Decimal('48.856600'),
-            longitude=Decimal('2.352200'),
-            timezone='Europe/Paris',
-            created_by=self.other_user
-        )
+    def test_invalid_longitude_rejected(self):
+        """Invalid longitude values should be rejected."""
         self.client.login(email='test@example.com', password='testpass123')
+        
+        # Out of range longitude (> 180)
         response = self.client.post(reverse('natal:natal_set_create'), {
-            'name': 'Unauthorized Place Test',
+            'name': 'Bad Longitude Test',
             'birth_datetime': '1990-06-15T12:00',
-            'place': other_user_place.pk,
+            'latitude': '40.7128',
+            'longitude': '185.0000',  # Invalid: > 180
+            'timezone': 'America/New_York',
             'permission': 'private',
         })
-        # Form should not be valid since place is filtered to user's places
         self.assertEqual(response.status_code, 200)
+        self.assertFalse(NatalSet.objects.filter(name='Bad Longitude Test').exists())
+        
+        # Out of range longitude (< -180)
+        response = self.client.post(reverse('natal:natal_set_create'), {
+            'name': 'Bad Longitude Test 2',
+            'birth_datetime': '1990-06-15T12:00',
+            'latitude': '40.7128',
+            'longitude': '-185.0000',  # Invalid: < -180
+            'timezone': 'America/New_York',
+            'permission': 'private',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(NatalSet.objects.filter(name='Bad Longitude Test 2').exists())
 
     def test_invalid_permission_choice_rejected(self):
         """Invalid permission choice should be rejected."""
@@ -907,7 +1022,9 @@ class NatalSetNegativeTest(TestCase):
         response = self.client.post(reverse('natal:natal_set_create'), {
             'name': 'Bad Permission Test',
             'birth_datetime': '1990-06-15T12:00',
-            'place': self.place.pk,
+            'latitude': '40.7128',
+            'longitude': '-74.0060',
+            'timezone': 'America/New_York',
             'permission': 'invalid_choice',
         })
         self.assertEqual(response.status_code, 200)
@@ -1142,6 +1259,10 @@ class ChartViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.public_set = NatalSet.objects.create(
@@ -1149,6 +1270,10 @@ class ChartViewTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PUBLIC
         )
 
@@ -1420,6 +1545,10 @@ class NatalSetDetailHTMXChartTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
 
@@ -1645,6 +1774,10 @@ class ChartViewAnalysisTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
 
@@ -1814,6 +1947,10 @@ class AnalysisDisplayTest(TestCase):
             owner=self.user,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         # Sample analysis data for testing
@@ -2172,6 +2309,10 @@ class ChartExportAPITest(TestCase):
             owner=self.owner,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PRIVATE
         )
         self.public_set = NatalSet.objects.create(
@@ -2179,6 +2320,10 @@ class ChartExportAPITest(TestCase):
             owner=self.owner,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.PUBLIC
         )
         self.named_group_set = NatalSet.objects.create(
@@ -2186,6 +2331,10 @@ class ChartExportAPITest(TestCase):
             owner=self.owner,
             birth_datetime=timezone.make_aware(datetime(1990, 6, 15, 12, 0)),
             place=self.place,
+            location_name='New York',
+            latitude=Decimal('40.712800'),
+            longitude=Decimal('-74.006000'),
+            timezone='America/New_York',
             permission=NatalSet.Permission.NAMED_GROUP
         )
         self.named_group_set.shared_with.add(self.other_user)
