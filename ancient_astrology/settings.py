@@ -254,6 +254,7 @@ REST_FRAMEWORK = {
         'anon': '100/minute',
         'user': '1000/minute',
         'export': '60/minute',
+        'geocode': '30/minute',
     },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',

@@ -2728,3 +2728,248 @@ class GeocodingClientTest(TestCase):
         self.assertEqual(len(results), 1)
         self.assertIsNone(results[0].timezone)
 
+
+# =============================================================================
+# LOCATION SEARCH API TESTS
+# =============================================================================
+
+from natal.clients import (
+    GeocodingRequest,
+    GeocodingResult,
+    geocode_location,
+)
+
+
+class LocationSearchAPITest(TestCase):
+    """Tests for the Location Search API endpoint."""
+
+    def setUp(self):
+        """Set up test users and client."""
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.api_url = reverse('natal:location_search')
+
+    def test_unauthenticated_request_returns_403(self):
+        """Unauthenticated request should return 403 Forbidden."""
+        response = self.client.get(self.api_url, {'q': 'New York'})
+        self.assertEqual(response.status_code, 403)
+
+    def test_missing_q_parameter_returns_400(self):
+        """Missing 'q' parameter should return 400 Bad Request."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+        self.assertIn('Missing required query parameter', response.json()['error'])
+
+    def test_empty_q_parameter_returns_400(self):
+        """Empty 'q' parameter should return 400 Bad Request."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': ''})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
+    def test_whitespace_only_q_parameter_returns_400(self):
+        """Whitespace-only 'q' parameter should return 400 Bad Request."""
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': '   '})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+
+    @patch('natal.clients.geocode_location')
+    def test_valid_search_returns_results(self, mock_geocode):
+        """Valid search should return results with correct structure."""
+        mock_geocode.return_value = [
+            GeocodingResult(
+                name='New York, NY, USA',
+                latitude=40.7128,
+                longitude=-74.0060,
+                timezone='America/New_York',
+                country='United States of America',
+                state='New York'
+            )
+        ]
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': 'New York'})
+        
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('results', data)
+        self.assertEqual(len(data['results']), 1)
+        
+        result = data['results'][0]
+        self.assertEqual(result['name'], 'New York, NY, USA')
+        self.assertEqual(result['lat'], 40.7128)
+        self.assertEqual(result['lon'], -74.0060)
+        self.assertEqual(result['timezone'], 'America/New_York')
+        self.assertEqual(result['country'], 'United States of America')
+
+    @patch('natal.clients.geocode_location')
+    def test_search_returns_multiple_results(self, mock_geocode):
+        """Search should return multiple results when available."""
+        mock_geocode.return_value = [
+            GeocodingResult(
+                name='New York, NY, USA',
+                latitude=40.7128,
+                longitude=-74.0060,
+                timezone='America/New_York',
+                country='United States of America',
+                state='New York'
+            ),
+            GeocodingResult(
+                name='New York Mills, MN, USA',
+                latitude=46.519,
+                longitude=-95.378,
+                timezone='America/Chicago',
+                country='United States of America',
+                state='Minnesota'
+            )
+        ]
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': 'New York'})
+        
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data['results']), 2)
+        self.assertEqual(data['results'][0]['name'], 'New York, NY, USA')
+        self.assertEqual(data['results'][1]['name'], 'New York Mills, MN, USA')
+
+    @patch('natal.clients.geocode_location')
+    def test_empty_results_returns_empty_array(self, mock_geocode):
+        """Search with no results should return empty array."""
+        mock_geocode.return_value = []
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': 'xyznonexistent'})
+        
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('results', data)
+        self.assertEqual(len(data['results']), 0)
+
+    @patch('natal.clients.geocode_location')
+    def test_geocoding_error_returns_503(self, mock_geocode):
+        """GeocodingError should return 503 Service Unavailable."""
+        from natal.clients import GeocodingError
+        mock_geocode.side_effect = GeocodingError(
+            message="Service temporarily unavailable",
+            status_code=503
+        )
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': 'New York'})
+        
+        self.assertEqual(response.status_code, 503)
+        data = response.json()
+        self.assertIn('error', data)
+        self.assertIn('Geocoding service unavailable', data['error'])
+
+    @patch('natal.clients.geocode_location')
+    def test_geocoding_timeout_returns_503(self, mock_geocode):
+        """Geocoding timeout should return 503 Service Unavailable."""
+        from natal.clients import GeocodingError
+        mock_geocode.side_effect = GeocodingError(
+            message="Request timed out after 10 seconds"
+        )
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        response = self.client.get(self.api_url, {'q': 'New York'})
+        
+        self.assertEqual(response.status_code, 503)
+        data = response.json()
+        self.assertIn('error', data)
+
+    @patch('natal.clients.geocode_location')
+    def test_search_calls_geocode_with_correct_params(self, mock_geocode):
+        """Search should call geocode_location with correct parameters."""
+        mock_geocode.return_value = []
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        self.client.get(self.api_url, {'q': 'London'})
+        
+        mock_geocode.assert_called_once()
+        call_args = mock_geocode.call_args[0][0]
+        self.assertIsInstance(call_args, GeocodingRequest)
+        self.assertEqual(call_args.query, 'London')
+        self.assertEqual(call_args.limit, 5)
+
+    def test_search_query_is_stripped(self):
+        """Search query should be stripped of leading/trailing whitespace."""
+        with patch('natal.clients.geocode_location') as mock_geocode:
+            mock_geocode.return_value = []
+            
+            self.client.login(email='test@example.com', password='testpass123')
+            self.client.get(self.api_url, {'q': '  Paris  '})
+            
+            call_args = mock_geocode.call_args[0][0]
+            self.assertEqual(call_args.query, 'Paris')
+
+    def test_view_has_correct_permission_classes(self):
+        """View should have IsAuthenticated permission."""
+        from natal.views import LocationSearchView
+        from rest_framework.permissions import IsAuthenticated
+        
+        self.assertIn(IsAuthenticated, LocationSearchView.permission_classes)
+
+    def test_view_has_geocode_throttle_scope(self):
+        """View should have geocode throttle scope."""
+        from natal.views import LocationSearchView
+        
+        self.assertEqual(LocationSearchView.throttle_scope, 'geocode')
+
+    def test_result_format_includes_all_required_fields(self):
+        """Results should include name, lat, lon, timezone, and country."""
+        with patch('natal.clients.geocode_location') as mock_geocode:
+            mock_geocode.return_value = [
+                GeocodingResult(
+                    name='Berlin',
+                    latitude=52.52,
+                    longitude=13.405,
+                    timezone='Europe/Berlin',
+                    country='Germany',
+                    state=None
+                )
+            ]
+            
+            self.client.login(email='test@example.com', password='testpass123')
+            response = self.client.get(self.api_url, {'q': 'Berlin'})
+            
+            self.assertEqual(response.status_code, 200)
+            result = response.json()['results'][0]
+            
+            # Check all required fields are present
+            self.assertIn('name', result)
+            self.assertIn('lat', result)
+            self.assertIn('lon', result)
+            self.assertIn('timezone', result)
+            self.assertIn('country', result)
+
+    def test_result_format_handles_null_optional_fields(self):
+        """Results should handle null timezone and country gracefully."""
+        with patch('natal.clients.geocode_location') as mock_geocode:
+            mock_geocode.return_value = [
+                GeocodingResult(
+                    name='Unknown Place',
+                    latitude=0.0,
+                    longitude=0.0,
+                    timezone=None,
+                    country=None,
+                    state=None
+                )
+            ]
+            
+            self.client.login(email='test@example.com', password='testpass123')
+            response = self.client.get(self.api_url, {'q': 'Unknown'})
+            
+            self.assertEqual(response.status_code, 200)
+            result = response.json()['results'][0]
+            
+            self.assertIsNone(result['timezone'])
+            self.assertIsNone(result['country'])
+

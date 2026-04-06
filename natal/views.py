@@ -431,3 +431,63 @@ class ChartExportAPIView(APIView):
                 'Content-Disposition': f'attachment; filename="{natal_set.name}.{format_param}"'
             }
         )
+
+
+class LocationSearchView(APIView):
+    """
+    API endpoint for searching locations by name using the Photon geocoding API.
+    
+    GET /api/location/search/?q=<query>
+    
+    Query Parameters:
+        q: Location search query (required)
+    
+    Responses:
+        200: JSON object with results array
+        400: Missing or empty 'q' parameter
+        401: Authentication required
+        503: Geocoding service unavailable
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_scope = 'geocode'
+    
+    def get(self, request):
+        """Handle GET request for location search."""
+        from rest_framework.response import Response
+        from rest_framework import status
+        
+        from .clients import GeocodingError, GeocodingRequest, geocode_location
+        
+        # Get and validate query parameter
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response(
+                {'error': 'Missing required query parameter: q'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create geocoding request
+        geocoding_request = GeocodingRequest(query=query, limit=5)
+        
+        try:
+            results = geocode_location(geocoding_request)
+            
+            # Format results for response
+            formatted_results = [
+                {
+                    'name': r.name,
+                    'lat': r.latitude,
+                    'lon': r.longitude,
+                    'timezone': r.timezone,
+                    'country': r.country,
+                }
+                for r in results
+            ]
+            
+            return Response({'results': formatted_results})
+            
+        except GeocodingError as e:
+            return Response(
+                {'error': f'Geocoding service unavailable: {e.error_message}'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
