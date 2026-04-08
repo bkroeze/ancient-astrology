@@ -10,4 +10,5 @@ urlpatterns = [
     path('natal/', include('natal.urls', namespace='natal')),
     path('api/v1/', include('natal.api_urls')),
     path('accounts/', include('allauth.urls')),
+    path('electional/', include('electional.urls', namespace='electional')),
 ]
