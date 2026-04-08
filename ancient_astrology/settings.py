@@ -77,6 +77,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',  # Required by allauth
+                'core.context_processors.feature_flags',
             ],
         },
     },
@@ -228,6 +229,9 @@ ASTRO_CLOCK_SERVER = env('ASTRO_API_URL', default='http://localhost:8086')
 
 # Chart generation timeout (seconds)
 CHART_API_TIMEOUT = 30
+
+# Feature flags
+ELECTIONAL_ENABLED = env.bool('ELECTIONAL_ENABLED', default=True)
 
 # Photon geocoding API URL
 PHOTON_API_URL = 'https://photon.komoot.io'
