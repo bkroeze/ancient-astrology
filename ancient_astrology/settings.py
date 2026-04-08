@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'users',
     'core',
     'natal',
+    'electional',
 ]
 
 MIDDLEWARE = [
