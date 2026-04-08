@@ -296,7 +296,13 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
                 status_code=response.status_code,
             )
         
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError as e:
+            _log.error("Geocoding API returned malformed JSON: %s", str(e))
+            raise GeocodingError(
+                message=f"Invalid JSON response from geocoding service: {str(e)}",
+            )
         results: list[GeocodingResult] = []
         
         # Photon returns GeoJSON FeatureCollection

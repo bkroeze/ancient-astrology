@@ -2728,6 +2728,38 @@ class GeocodingClientTest(TestCase):
         self.assertEqual(len(results), 1)
         self.assertIsNone(results[0].timezone)
 
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_handles_malformed_json(self, mock_get):
+        """geocode_location raises GeocodingError on malformed JSON response."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        # Simulate ValueError when parsing JSON
+        mock_response.json.side_effect = ValueError("Expecting value")
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='Test')
+
+        with self.assertRaises(GeocodingError) as context:
+            geocode_location(request)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn("Expecting value", context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_geocode_location_handles_empty_response(self, mock_get):
+        """geocode_location handles empty response body gracefully."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.side_effect = ValueError("No content")
+        mock_get.return_value = mock_response
+
+        request = GeocodingRequest(query='Test')
+
+        with self.assertRaises(GeocodingError) as context:
+            geocode_location(request)
+
+        self.assertIsNone(context.exception.status_code)
+
 
 # =============================================================================
 # LOCATION SEARCH API TESTS
@@ -2972,4 +3004,39 @@ class LocationSearchAPITest(TestCase):
             
             self.assertIsNone(result['timezone'])
             self.assertIsNone(result['country'])
+
+    def test_rate_limit_exceeded_returns_429(self):
+        """Exceeding rate limit should return 429 Too Many Requests."""
+        from unittest.mock import MagicMock
+        from rest_framework.throttling import ScopedRateThrottle
+        
+        self.client.login(email='test@example.com', password='testpass123')
+        
+        # Create a mock throttle that denies all requests
+        def mock_throttle():
+            throttle = MagicMock(spec=ScopedRateThrottle)
+            throttle.allow_request.return_value = False
+            throttle.wait.return_value = 60
+            return throttle
+        
+        # Patch the throttle at the view level
+        with patch('rest_framework.views.APIView.throttle_classes', [mock_throttle]):
+            response = self.client.get(self.api_url, {'q': 'Test'})
+        
+        self.assertEqual(response.status_code, 429)
+        
+    def test_throttle_rate_configured_correctly(self):
+        """Verify that the geocode throttle rate is configured."""
+        from django.conf import settings
+        
+        # The geocode throttle rate should be configured in settings
+        self.assertIn('geocode', settings.REST_FRAMEWORK.get('DEFAULT_THROTTLE_RATES', {}))
+        self.assertEqual(settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['geocode'], '30/minute')
+
+    def test_anonymous_request_returns_403(self):
+        """Anonymous (unauthenticated) requests should return 403 Forbidden."""
+        # Explicitly logout if logged in
+        self.client.logout()
+        response = self.client.get(self.api_url, {'q': 'Test'})
+        self.assertEqual(response.status_code, 403)
 
