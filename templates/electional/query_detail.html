@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ saved_query.name }} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>{{ saved_query.name }}</h1>
+        {% if saved_query.owner == user %}
+            <div class="action-buttons">
+                <a href="{% url 'electional:saved_query_edit' saved_query.pk %}" class="btn btn-secondary">Edit</a>
+                <a href="{% url 'electional:saved_query_delete' saved_query.pk %}" class="btn btn-danger">Delete</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="natal-set-detail">
+        <div class="detail-section">
+            <h2>Query Information</h2>
+            <dl class="detail-list">
+                <dt>Name</dt>
+                <dd>{{ saved_query.name }}</dd>
+
+                <dt>Query Type</dt>
+                <dd>{{ saved_query.get_query_type_display }}</dd>
+
+                <dt>Permission</dt>
+                <dd>
+                    <span class="badge badge-{{ saved_query.permission }}">{{ saved_query.get_permission_display }}</span>
+                </dd>
+
+                {% if saved_query.owner != user %}
+                    <dt>Owner</dt>
+                    <dd>{{ saved_query.owner.email }}</dd>
+                {% endif %}
+
+                <dt>Created</dt>
+                <dd>{{ saved_query.created_at|date:"F j, Y" }} at {{ saved_query.created_at|time:"g:i A" }}</dd>
+
+                <dt>Last Updated</dt>
+                <dd>{{ saved_query.updated_at|date:"F j, Y" }} at {{ saved_query.updated_at|time:"g:i A" }}</dd>
+            </dl>
+        </div>
+
+        {% if saved_query.query_params %}
+            <div class="detail-section">
+                <h2>Query Parameters</h2>
+                <div class="notes-content">
+                    {% if saved_query.query_params.description %}
+                        <p><strong>Description:</strong> {{ saved_query.query_params.description }}</p>
+                    {% endif %}
+                    {% if saved_query.query_params.location_name %}
+                        <p><strong>Location:</strong> {{ saved_query.query_params.location_name }}</p>
+                    {% endif %}
+                    {% if saved_query.query_params.start_date and saved_query.query_params.end_date %}
+                        <p><strong>Date Range:</strong> {{ saved_query.query_params.start_date }} to {{ saved_query.query_params.end_date }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if saved_query.permission == saved_query.NAMED_GROUP %}
+            <div class="detail-section">
+                <h2>Shared With</h2>
+                {% with saved_query.shared_with.all as shared_users %}
+                    {% if shared_users %}
+                        <ul class="shared-users-list">
+                            {% for user in shared_users %}
+                                <li>{{ user.email }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No users currently have access.</p>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        {% endif %}
+    </div>
+
+    {# Query Submission & Job Status Section - HTMX powered #}
+    <div class="detail-section">
+        <h2>Query Analysis</h2>
+        <div class="chart-section">
+            {% if not saved_query.job_id %}
+                {# No job submitted yet - show submit button #}
+                <div class="chart-button-container" id="submit-query-container">
+                    <button
+                        hx-post="{% url 'electional:saved_query_submit' saved_query.pk %}"
+                        hx-target="#job-status"
+                        hx-swap="innerHTML"
+                        hx-indicator="#job-loading"
+                        class="btn btn-primary"
+                        id="submit-query-btn"
+                    >
+                        <span class="btn-icon">&#10023;</span>
+                        Submit Query
+                    </button>
+                    <p class="chart-hint">Click to submit this electional query for analysis</p>
+                </div>
+            {% endif %}
+
+            {# Job status container - HTMX polls/replaces content here #}
+            <div id="job-status" class="chart-content">
+                {% if saved_query.job_id %}
+                    {# Job exists - render status partial via include #}
+                    {% include "electional/job_status.html" with job_status=saved_query.job_status job_id=saved_query.job_id result_data=saved_query.result_data job_error=saved_query.job_error %}
+                {% endif %}
+            </div>
+
+            {# Loading indicator #}
+            <div id="job-loading" class="htmx-indicator chart-loading">
+                <div class="loading-spinner"></div>
+                <p>Submitting query...</p>
+            </div>
+        </div>
+    </div>
+
+    {# Results section - shown when job is complete #}
+    <div id="query-results">
+        {% if saved_query.result_data %}
+            {% include "electional/query_results.html" with result_data=saved_query.result_data %}
+        {% endif %}
+    </div>
+
+    <div class="back-link">
+        <a href="{% url 'electional:saved_query_list' %}">&larr; Back to Electional Queries</a>
+    </div>
+</div>
+{% endblock %}

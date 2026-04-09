@@ -1,0 +1,65 @@
+{# Query results partial - rendered when job is complete #}
+{# Expected context: result_data (dict with electional analysis results) #}
+
+{% if result_data %}
+<div class="query-results-panel">
+    <h2>Electional Results</h2>
+
+    {% if result_data.summary %}
+        <div class="detail-section">
+            <h3>Summary</h3>
+            <div class="notes-content">
+                {{ result_data.summary|linebreaks }}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if result_data.recommendations %}
+        <div class="detail-section">
+            <h3>Recommended Dates</h3>
+            <div class="natal-sets-grid">
+                {% for rec in result_data.recommendations %}
+                    <div class="natal-set-card">
+                        <div class="natal-set-header">
+                            <h3>{{ rec.date|default:"Option " }}{{ forloop.counter }}</h3>
+                        </div>
+                        <div class="natal-set-details">
+                            {% if rec.date %}
+                                <p><strong>Date:</strong> {{ rec.date }}</p>
+                            {% endif %}
+                            {% if rec.time %}
+                                <p><strong>Time:</strong> {{ rec.time }}</p>
+                            {% endif %}
+                            {% if rec.score %}
+                                <p><strong>Score:</strong> {{ rec.score }}/10</p>
+                            {% endif %}
+                            {% if rec.reasoning %}
+                                <p><strong>Reasoning:</strong> {{ rec.reasoning }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if result_data.notes %}
+        <div class="detail-section">
+            <h3>Additional Notes</h3>
+            <div class="notes-content">
+                {{ result_data.notes|linebreaks }}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Fallback: show raw JSON if structure doesn't match expected format #}
+    {% if not result_data.summary and not result_data.recommendations and not result_data.notes %}
+        <div class="detail-section">
+            <h3>Raw Results</h3>
+            <div class="notes-content">
+                <pre>{{ result_data|pprint }}</pre>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endif %}

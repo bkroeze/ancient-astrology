@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Electional Queries - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Electional Queries</h1>
+        <a href="{% url 'electional:saved_query_create' %}" class="btn btn-primary">New Electional Query</a>
+    </div>
+
+    {% if saved_queries %}
+        <div class="natal-sets-grid">
+            {% for query in saved_queries %}
+                <div class="natal-set-card">
+                    <div class="natal-set-header">
+                        <h3>{{ query.name }}</h3>
+                        <span class="badge badge-{{ query.permission }}">{{ query.get_permission_display }}</span>
+                    </div>
+                    <div class="natal-set-details">
+                        <p><strong>Type:</strong> {{ query.get_query_type_display }}</p>
+                        <p><strong>Status:</strong>
+                            <span class="badge badge-job-{{ query.job_status }}">{{ query.get_job_status_display }}</span>
+                        </p>
+                        <p><strong>Created:</strong> {{ query.created_at|date:"F j, Y" }}</p>
+                        {% if query.owner != user %}
+                            <p><strong>Owner:</strong> {{ query.owner.email }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="natal-set-actions">
+                        <a href="{% url 'electional:saved_query_detail' query.pk %}" class="btn btn-sm btn-info">View</a>
+                        {% if query.owner == user %}
+                            <a href="{% url 'electional:saved_query_edit' query.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+                            <a href="{% url 'electional:saved_query_delete' query.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if page_obj.has_other_pages %}
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1">&laquo; First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                {% endif %}
+
+                <span class="page-info">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}">Next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <p>You don't have any electional queries yet.</p>
+            <p>Create your first electional query to find auspicious dates for important events!</p>
+            <a href="{% url 'electional:saved_query_create' %}" class="btn btn-primary">Create Your First Query</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

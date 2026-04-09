@@ -1,0 +1,52 @@
+{# Job status partial - rendered via HTMX polling or direct include #}
+{# Expected context: job_status, job_id, result_data (optional), job_error (optional), saved_query #}
+
+<div class="job-status-panel">
+    {% if job_status == "pending" or job_status == "processing" %}
+        <div class="job-status-info">
+            <div class="loading-spinner"></div>
+            <p class="job-status-text">
+                {% if job_status == "pending" %}
+                    Query is queued and waiting to be processed...
+                {% else %}
+                    Analyzing electional chart candidates...
+                {% endif %}
+            </p>
+            <p class="job-status-detail">Job ID: {{ job_id }}</p>
+        </div>
+        {# HTMX polling: re-check status every 5 seconds via dedicated endpoint #}
+        <div
+            hx-get="{% url 'electional:saved_query_job_status' saved_query.pk %}"
+            hx-target="#job-status"
+            hx-swap="innerHTML"
+            hx-trigger="every 5s"
+            hx-indicator="#job-loading"
+        ></div>
+    {% elif job_status == "completed" %}
+        <div class="job-status-success">
+            <p class="job-status-text">&#10003; Analysis complete!</p>
+            <p class="job-status-detail">Job ID: {{ job_id }}</p>
+        </div>
+        {# Load results into the results container #}
+        <div
+            hx-get="{% url 'electional:saved_query_job_status' saved_query.pk %}"
+            hx-target="#query-results"
+            hx-swap="innerHTML"
+            hx-trigger="load once"
+        ></div>
+    {% elif job_status == "failed" %}
+        <div class="job-status-error">
+            <p class="job-status-text">&#10007; Analysis failed</p>
+            {% if job_error %}
+                <p class="job-status-detail">{{ job_error }}</p>
+            {% else %}
+                <p class="job-status-detail">An unexpected error occurred during processing.</p>
+            {% endif %}
+            <p class="job-status-detail">Job ID: {{ job_id }}</p>
+        </div>
+    {% else %}
+        <div class="job-status-info">
+            <p class="job-status-text">Status: {{ job_status|default:"Unknown" }}</p>
+        </div>
+    {% endif %}
+</div>

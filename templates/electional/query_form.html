@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title|default:"Electional Query" }} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>{{ page_title|default:"Electional Query" }}</h1>
+    </div>
+
+    <form method="post" class="natal-set-form">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <div class="error-message">{{ form.name.errors.0 }}</div>
+            {% endif %}
+            {% if form.name.help_text %}
+                <div class="help-text">{{ form.name.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.query_type.id_for_label }}">{{ form.query_type.label }}</label>
+            {{ form.query_type }}
+            {% if form.query_type.errors %}
+                <div class="error-message">{{ form.query_type.errors.0 }}</div>
+            {% endif %}
+            {% if form.query_type.help_text %}
+                <div class="help-text">{{ form.query_type.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.permission.id_for_label }}">{{ form.permission.label }}</label>
+            {{ form.permission }}
+            {% if form.permission.errors %}
+                <div class="error-message">{{ form.permission.errors.0 }}</div>
+            {% endif %}
+            {% if form.permission.help_text %}
+                <div class="help-text">{{ form.permission.help_text }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group" id="shared-with-group" style="display: none;">
+            <label for="{{ form.shared_with.id_for_label }}">{{ form.shared_with.label }}</label>
+            {{ form.shared_with }}
+            {% if form.shared_with.errors %}
+                <div class="error-message">{{ form.shared_with.errors.0 }}</div>
+            {% endif %}
+            {% if form.shared_with.help_text %}
+                <div class="help-text">{{ form.shared_with.help_text }}</div>
+            {% endif %}
+            <div class="help-text">Hold Ctrl/Cmd to select multiple users.</div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if page_title|default:""|lower|slice:":6" == "create" %}
+                    Create Query
+                {% else %}
+                    Save Changes
+                {% endif %}
+            </button>
+            <a href="{% url 'electional:saved_query_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const permissionSelect = document.querySelector('#{{ form.permission.id_for_label }}');
+    const sharedWithGroup = document.getElementById('shared-with-group');
+
+    function toggleSharedWith() {
+        if (permissionSelect.value === 'named_group') {
+            sharedWithGroup.style.display = 'block';
+        } else {
+            sharedWithGroup.style.display = 'none';
+        }
+    }
+
+    if (permissionSelect) {
+        permissionSelect.addEventListener('change', toggleSharedWith);
+        toggleSharedWith();
+    }
+});
+</script>
+{% endblock %}

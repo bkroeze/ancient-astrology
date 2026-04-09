@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ saved_query.name }} - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Delete Electional Query</h1>
+    </div>
+
+    <div class="confirm-delete">
+        <p>Are you sure you want to delete <strong>{{ saved_query.name }}</strong>?</p>
+        
+        <div class="detail-summary">
+            <p><strong>Query Type:</strong> {{ saved_query.get_query_type_display }}</p>
+            <p><strong>Status:</strong> {{ saved_query.get_job_status_display }}</p>
+            <p><strong>Permission:</strong> {{ saved_query.get_permission_display }}</p>
+        </div>
+
+        <p class="warning-text">This action cannot be undone.</p>
+
+        <form method="post" class="delete-form">
+            {% csrf_token %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                <a href="{% url 'electional:saved_query_detail' saved_query.pk %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
