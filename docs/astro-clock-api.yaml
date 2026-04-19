@@ -24,6 +24,10 @@ paths:
                   status:
                     type: string
                     example: healthy
+                  db_enabled:
+                    type: boolean
+                    description: Whether database feature is enabled
+                    example: true
 
   /chart:
     get:
@@ -329,6 +333,59 @@ paths:
         '500':
           description: Internal server error
 
+  /api/v1/chart/data:
+    get:
+      summary: Get chart data as JSON
+      description: |
+        Returns structured astrological chart data including planet positions,
+        house cusps, aspects, grand trines, and moon void of course information.
+        Suitable for display in external applications.
+      operationId: getChartData
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitude of the location (-90 to 90)
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          description: Longitude of the location (-180 to 180)
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+        - name: time
+          in: query
+          required: false
+          description: Time for the chart (optional, defaults to current time)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chart data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartDataResponse'
+        '400':
+          description: Invalid request parameters (missing or invalid lat/lon)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during chart calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     LoadRequest:
@@ -478,6 +535,218 @@ components:
         offset:
           type: integer
           description: Offset used
+
+    ChartDataResponse:
+      type: object
+      description: Complete astrological chart data
+      properties:
+        planets:
+          type: array
+          description: Positions of all planets
+          items:
+            $ref: '#/components/schemas/PlanetPosition'
+        houses:
+          $ref: '#/components/schemas/HouseCusps'
+        aspects:
+          type: array
+          description: Aspects between planets
+          items:
+            $ref: '#/components/schemas/Aspect'
+        grand_trines:
+          type: array
+          description: Grand trine patterns found
+          items:
+            $ref: '#/components/schemas/GrandTrine'
+        moon_void_of_course:
+          type: string
+          nullable: true
+          description: Moon void of course information if applicable
+        metadata:
+          $ref: '#/components/schemas/ChartMetadata'
+
+    PlanetPosition:
+      type: object
+      description: Position data for a single planet
+      properties:
+        name:
+          type: string
+          description: Planet name
+          example: Mars
+        position:
+          $ref: '#/components/schemas/Position'
+        retrograde:
+          type: boolean
+          description: Whether the planet is retrograde
+          example: false
+
+    Position:
+      type: object
+      description: Celestial coordinates and motion data
+      properties:
+        longitude:
+          type: number
+          format: double
+          description: Ecliptic longitude in degrees (0-360)
+          example: 125.5
+        latitude:
+          type: number
+          format: double
+          description: Ecliptic latitude in degrees
+          example: -1.2
+        distance:
+          type: number
+          format: double
+          description: Distance in AU
+          example: 1.5
+        speed_lon:
+          type: number
+          format: double
+          description: Longitudinal speed in degrees/day
+          example: 0.5
+        speed_lat:
+          type: number
+          format: double
+          description: Latitudinal speed in degrees/day
+          example: 0.01
+        speed_dist:
+          type: number
+          format: double
+          description: Distance change in AU/day
+          example: 0.001
+
+    HouseCusps:
+      type: object
+      description: House cusp positions for a chart
+      properties:
+        asc:
+          type: number
+          format: double
+          description: Ascendant (Rising) degree
+          example: 180.0
+        mc:
+          type: number
+          format: double
+          description: Midheaven (MC) degree
+          example: 270.0
+        dc:
+          type: number
+          format: double
+          description: Descendant degree
+          example: 0.0
+        ic:
+          type: number
+          format: double
+          description: Imum Coeli (IC) degree
+          example: 90.0
+        houses:
+          type: array
+          description: All 12 house cusp degrees
+          items:
+            type: number
+            format: double
+          minItems: 12
+          maxItems: 12
+        system:
+          type: string
+          description: House system used
+          example: Placidus
+
+    Aspect:
+      type: object
+      description: An astrological aspect between two planets
+      properties:
+        aspect_type:
+          $ref: '#/components/schemas/AspectType'
+        planet1:
+          type: string
+          description: First planet name
+          example: Sun
+        planet2:
+          type: string
+          description: Second planet name
+          example: Moon
+        longitude1:
+          type: number
+          format: double
+          description: Longitude of first planet
+          example: 45.0
+        longitude2:
+          type: number
+          format: double
+          description: Longitude of second planet
+          example: 135.0
+        orb:
+          type: number
+          format: double
+          description: Orb in degrees
+          example: 2.5
+
+    AspectType:
+      type: string
+      description: Type of astrological aspect
+      enum:
+        - Conjunction
+        - Opposition
+        - Square
+        - Trine
+        - Sextile
+        - GrandTrine
+
+    GrandTrine:
+      type: object
+      description: A grand trine pattern (three planets in trine aspect)
+      properties:
+        planet1:
+          type: string
+          description: First planet name
+          example: Sun
+        planet2:
+          type: string
+          description: Second planet name
+          example: Mars
+        planet3:
+          type: string
+          description: Third planet name
+          example: Jupiter
+        longitude1:
+          type: number
+          format: double
+          description: Longitude of first planet
+          example: 120.0
+        longitude2:
+          type: number
+          format: double
+          description: Longitude of second planet
+          example: 240.0
+        longitude3:
+          type: number
+          format: double
+          description: Longitude of third planet
+          example: 0.0
+
+    ChartMetadata:
+      type: object
+      description: Metadata about the chart calculation
+      properties:
+        latitude:
+          type: number
+          format: double
+          description: Location latitude
+          example: 40.7128
+        longitude:
+          type: number
+          format: double
+          description: Location longitude
+          example: -74.006
+        julian_day:
+          type: number
+          format: double
+          description: Julian day number for the calculation
+          example: 2451545.0
+        house_system:
+          type: string
+          description: House system used for calculation
+          example: Placidus
 
     ErrorResponse:
       type: object

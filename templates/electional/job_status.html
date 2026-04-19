@@ -27,13 +27,9 @@
             <p class="job-status-text">&#10003; Analysis complete!</p>
             <p class="job-status-detail">Job ID: {{ job_id }}</p>
         </div>
-        {# Load results into the results container #}
-        <div
-            hx-get="{% url 'electional:saved_query_job_status' saved_query.pk %}"
-            hx-target="#query-results"
-            hx-swap="innerHTML"
-            hx-trigger="load once"
-        ></div>
+        {% if result_data %}
+            {% include "electional/query_results.html" with result_data=result_data saved_query=saved_query %}
+        {% endif %}
     {% elif job_status == "failed" %}
         <div class="job-status-error">
             <p class="job-status-text">&#10007; Analysis failed</p>

@@ -24,6 +24,9 @@
                 <dt>Query Type</dt>
                 <dd>{{ saved_query.get_query_type_display }}</dd>
 
+                <dt>Location</dt>
+                <dd>{{ saved_query.latitude }}, {{ saved_query.longitude }}</dd>
+
                 <dt>Permission</dt>
                 <dd>
                     <span class="badge badge-{{ saved_query.permission }}">{{ saved_query.get_permission_display }}</span>
@@ -113,13 +116,6 @@
                 <p>Submitting query...</p>
             </div>
         </div>
-    </div>
-
-    {# Results section - shown when job is complete #}
-    <div id="query-results">
-        {% if saved_query.result_data %}
-            {% include "electional/query_results.html" with result_data=saved_query.result_data %}
-        {% endif %}
     </div>
 
     <div class="back-link">

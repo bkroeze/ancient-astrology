@@ -741,3 +741,166 @@ main {
         display: none;
     }
 }
+
+/* ==========================================================================
+   Electional Results Styles
+   ========================================================================== */
+
+.query-results-panel {
+    margin-top: 1.5rem;
+}
+
+.query-results-panel h2 {
+    color: #1a1a2e;
+    margin-bottom: 1rem;
+}
+
+.electional-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.electional-result-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e8e8e8;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.electional-result-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.electional-result-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.electional-result-header h3 {
+    margin: 0;
+    font-size: 1.0625rem;
+    color: #1a1a2e;
+}
+
+.electional-result-header h3 small {
+    color: #666;
+    font-weight: 400;
+    font-size: 0.875rem;
+    margin-left: 0.25rem;
+}
+
+.electional-result-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: #888;
+}
+
+.stat-value {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.stat-negative {
+    color: #dc2626;
+}
+
+.electional-result-chart {
+    border-top: 1px solid #f0f0f0;
+}
+
+.electional-result-chart details {
+    padding: 0;
+}
+
+.electional-result-chart summary {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    color: #4361ee;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.electional-result-chart summary:hover {
+    background-color: #f8f9ff;
+}
+
+.electional-result-chart .chart-svg {
+    padding: 1rem;
+    border-top: 1px solid #f0f0f0;
+    background: #fafafa;
+}
+
+.result-count {
+    font-size: 0.875rem;
+    color: #888;
+    margin-top: 0.5rem;
+}
+
+.debug-details {
+    margin-top: 1.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.debug-details summary {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    background: #f9f9f9;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.debug-details summary:hover {
+    background: #f0f0f0;
+}
+
+.debug-details-content {
+    padding: 1rem;
+}
+
+.debug-details-content .chart-raw {
+    margin-top: 0.5rem;
+    max-height: 400px;
+    overflow: auto;
+}
+
+@media (max-width: 768px) {
+    .electional-results-grid {
+        grid-template-columns: 1fr;
+    }
+}

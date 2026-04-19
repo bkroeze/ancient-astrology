@@ -1,65 +1,83 @@
+{% load electional_tags %}
 {# Query results partial - rendered when job is complete #}
-{# Expected context: result_data (dict with electional analysis results) #}
+{# Expected context: result_data (dict), saved_query (SavedQuery) #}
 
 {% if result_data %}
 <div class="query-results-panel">
     <h2>Electional Results</h2>
 
-    {% if result_data.summary %}
-        <div class="detail-section">
-            <h3>Summary</h3>
-            <div class="notes-content">
-                {{ result_data.summary|linebreaks }}
-            </div>
-        </div>
-    {% endif %}
+    {% astro_chart_url as chart_base %}
 
-    {% if result_data.recommendations %}
-        <div class="detail-section">
-            <h3>Recommended Dates</h3>
-            <div class="natal-sets-grid">
-                {% for rec in result_data.recommendations %}
-                    <div class="natal-set-card">
-                        <div class="natal-set-header">
-                            <h3>{{ rec.date|default:"Option " }}{{ forloop.counter }}</h3>
+    {% with data_list=result_data.results.data %}
+        {% if data_list %}
+            <div class="electional-results-grid">
+                {% for item in data_list %}
+                    <div class="electional-result-card">
+                        <div class="electional-result-header">
+                            {% with dt=item.datetime|parse_iso %}
+                                <h3>{{ dt|date:"M j, Y" }} <small>{{ dt|date:"g:i A" }}</small></h3>
+                            {% endwith %}
                         </div>
-                        <div class="natal-set-details">
-                            {% if rec.date %}
-                                <p><strong>Date:</strong> {{ rec.date }}</p>
+                        <div class="electional-result-stats">
+                            {% if item.favorable_aspects is not None %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Favorable Aspects</span>
+                                    <span class="stat-value">{{ item.favorable_aspects }}</span>
+                                </div>
                             {% endif %}
-                            {% if rec.time %}
-                                <p><strong>Time:</strong> {{ rec.time }}</p>
+                            {% if item.mercury_direct is not None %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Mercury</span>
+                                    <span class="stat-value {% if not item.mercury_direct %}stat-negative{% endif %}">
+                                        {% if item.mercury_direct %}Direct{% else %}Retrograde{% endif %}
+                                    </span>
+                                </div>
                             {% endif %}
-                            {% if rec.score %}
-                                <p><strong>Score:</strong> {{ rec.score }}/10</p>
-                            {% endif %}
-                            {% if rec.reasoning %}
-                                <p><strong>Reasoning:</strong> {{ rec.reasoning }}</p>
+                            {% if item.moon_sign %}
+                                <div class="stat-item">
+                                    <span class="stat-label">Moon Sign</span>
+                                    <span class="stat-value">{{ item.moon_sign }}</span>
+                                </div>
                             {% endif %}
                         </div>
+                        <div class="electional-result-chart">
+                                <details>
+                                    <summary>Show Chart</summary>
+                                    <div class="chart-svg">
+                                        <img
+                                            src="{{ chart_base }}/chart?lat={{ saved_query.latitude }}&lon={{ saved_query.longitude }}&time={{ item.datetime }}&format=svg"
+                                            alt="Chart for {{ item.datetime }}"
+                                            class="chart-image"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                </details>
+                            </div>
                     </div>
                 {% endfor %}
             </div>
-        </div>
-    {% endif %}
-
-    {% if result_data.notes %}
-        <div class="detail-section">
-            <h3>Additional Notes</h3>
-            <div class="notes-content">
-                {{ result_data.notes|linebreaks }}
+            <p class="result-count">{{ data_list|length }} result{{ data_list|length|pluralize }} found</p>
+        {% else %}
+            <div class="no-data-message">
+                <p>No favorable dates found for this query. Try expanding the date range or adjusting your parameters.</p>
             </div>
+        {% endif %}
+    {% endwith %}
+
+    {% if not result_data.results.data %}
+        <div class="no-data-message">
+            <p>No results data available for this query.</p>
         </div>
     {% endif %}
 
-    {# Fallback: show raw JSON if structure doesn't match expected format #}
-    {% if not result_data.summary and not result_data.recommendations and not result_data.notes %}
-        <div class="detail-section">
-            <h3>Raw Results</h3>
-            <div class="notes-content">
+    <details class="debug-details">
+        <summary>Technical Details</summary>
+        <div class="debug-details-content">
+            <p class="job-status-detail">Job ID: {{ saved_query.job_id }}</p>
+            <div class="chart-raw">
                 <pre>{{ result_data|pprint }}</pre>
             </div>
         </div>
-    {% endif %}
+    </details>
 </div>
 {% endif %}

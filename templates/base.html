@@ -9,12 +9,14 @@
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <!-- HTMX from CDN -->
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" 
-            integrity="sha384-HGfztofotfSvYWWJLU4DN8WWmJS1DmedVsnuLDVCD7UbKvt4eKhZxg4g9wzuo" 
+            integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" 
             crossorigin="anonymous"></script>
     <!-- Configure HTMX to send CSRF token with all requests -->
     <script>
-        document.body.addEventListener('htmx:configRequest', function(event) {
-            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.addEventListener('htmx:configRequest', function(event) {
+                event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+            });
         });
     </script>
     {% block extra_head %}{% endblock %}
