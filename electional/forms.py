@@ -70,9 +70,12 @@ class SavedQueryForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-        # Model provides defaults for query_type and permission, so form fields are optional
+        # Model provides defaults for query_type, permission, latitude, and longitude,
+        # so form fields are optional
         self.fields["query_type"].required = False
         self.fields["permission"].required = False
+        self.fields["latitude"].required = False
+        self.fields["longitude"].required = False
         # shared_with only required for NAMED_GROUP
         self.fields["shared_with"].required = False
 
