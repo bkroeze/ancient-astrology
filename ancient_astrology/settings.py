@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'core',
     'natal',
     'electional',
+    'jobs',
 ]
 
 MIDDLEWARE = [

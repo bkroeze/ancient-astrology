@@ -56,7 +56,7 @@ paths:
             type: string
         - name: format
           in: query
-          description: Output format - "svg" or "png" (default: png)
+          description: "Output format - svg or png (default: png)"
           schema:
             type: string
             enum: [svg, png]
@@ -157,43 +157,115 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
+    delete:
+      summary: Delete a job
+      description: |
+        Deletes a single job by ID. Jobs with status `in_process` cannot be deleted
+        (returns 409 Conflict) to prevent orphaning an active worker. Deleting a
+        non-existent job returns 404. Deleting a job that disappears between the
+        existence check and deletion returns 404 (idempotent).
+      operationId: deleteJob
+      responses:
+        '204':
+          description: Job deleted successfully (no content)
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot delete job in in_process status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
 
   /api/v1/jobs:
     get:
       summary: List jobs
-      description: Returns a paginated list of jobs
+      description: |
+        Returns a cursor-paginated list of jobs with multi-value filtering.
+        Results are ordered by created_at DESC, id DESC. Cursor-based pagination
+        uses opaque base64 tokens anchored on (created_at, id) for stable page
+        boundaries — new jobs inserted between page fetches don't shift results.
       operationId: listJobs
       parameters:
         - name: status
           in: query
-          description: Filter by job status
+          description: |
+            Filter by job status. Accepts comma-separated list for multi-value filtering.
+            Invalid values return 400 with descriptive error.
           schema:
             type: string
-            enum: [pending, in_process, complete, failed]
-        - name: limit
+          examples:
+            single:
+              value: complete
+              summary: Single status filter
+            multi:
+              value: "complete,failed"
+              summary: Multiple statuses
+        - name: job_type
           in: query
-          description: Maximum number of jobs to return (default: 20, max: 100)
+          description: |
+            Filter by job type. Accepts comma-separated list for multi-value filtering.
+            Invalid values return 400 with descriptive error.
+          schema:
+            type: string
+          examples:
+            single:
+              value: load
+              summary: Single job type filter
+            multi:
+              value: "load,query"
+              summary: Multiple job types
+        - name: created_after
+          in: query
+          description: |
+            Filter to jobs created on or after this timestamp.
+            Accepts RFC3339 (e.g. 2025-01-15T00:00:00Z) or YYYY-MM-DD (treated as midnight UTC).
+          schema:
+            type: string
+          example: "2025-01-01"
+        - name: created_before
+          in: query
+          description: |
+            Filter to jobs created on or before this timestamp.
+            Accepts RFC3339 (e.g. 2025-03-01T23:59:59Z) or YYYY-MM-DD (treated as midnight UTC).
+          schema:
+            type: string
+          example: "2025-03-01"
+        - name: count
+          in: query
+          description: "Number of jobs to return per page (default 20, max 100)"
           schema:
             type: integer
             default: 20
             minimum: 1
             maximum: 100
-        - name: offset
+        - name: cursor
           in: query
-          description: Pagination offset (default: 0)
+          description: |
+            Opaque cursor token for pagination. Obtain from the `next` or `prev` field
+            of a previous response. Clients should treat this as an opaque string.
+            Omit for the first page.
           schema:
-            type: integer
-            default: 0
-            minimum: 0
+            type: string
       responses:
         '200':
-          description: List of jobs
+          description: Paginated list of jobs
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListJobsResponse'
         '400':
-          description: Invalid query parameters
+          description: Invalid query parameters (invalid status/job_type values, invalid date format, or invalid cursor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
 
@@ -438,16 +510,21 @@ components:
       type: object
       required:
         - start_date
-        - days
       properties:
         start_date:
           type: string
           description: Start date in YYYY-MM-DD format
+          example: "2024-01-01"
         days:
           type: integer
-          description: Number of days to query (1-366)
+          description: Number of days to query (1-366). Mutually exclusive with end_date.
           minimum: 1
           maximum: 366
+          example: 30
+        end_date:
+          type: string
+          description: End date in YYYY-MM-DD format. Mutually exclusive with days.
+          example: "2024-01-30"
         sync:
           type: boolean
           description: Execute synchronously
@@ -464,6 +541,35 @@ components:
         result:
           type: object
           description: Query result data (present when complete)
+          properties:
+            query_name:
+              type: string
+              description: Name of the query that was executed
+            start_date:
+              type: string
+              description: Start date of the query range
+            end_date:
+              type: string
+              description: End date of the query range
+            days:
+              type: integer
+              description: Number of days queried
+            total_results:
+              type: integer
+              description: Total number of results found
+            execution_time_ms:
+              type: integer
+              description: Execution time in milliseconds
+            results:
+              type: array
+              description: The actual query results
+              items:
+                type: object
+            warnings:
+              type: array
+              description: Any warnings about data loading
+              items:
+                type: string
 
     QueryAsyncResponse:
       type: object
@@ -521,20 +627,25 @@ components:
 
     ListJobsResponse:
       type: object
+      description: |
+        Cursor-paginated list of jobs. Follow `next` or `prev` URLs to navigate pages.
+        Both URLs preserve all active filter parameters (status, job_type, created_after, created_before).
+        `next` is null on the last page. `prev` is null on the first page.
       properties:
         jobs:
           type: array
           items:
             $ref: '#/components/schemas/JobResponse'
-        total:
-          type: integer
-          description: Total number of jobs matching filter
-        limit:
-          type: integer
-          description: Limit used
-        offset:
-          type: integer
-          description: Offset used
+        next:
+          type: string
+          nullable: true
+          description: URL for the next page of results (null if this is the last page)
+          example: "/api/v1/jobs?count=20&cursor=eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNVQxMjowMDowMFoiLCJpZCI6ImFiYzEyMyJ9"
+        prev:
+          type: string
+          nullable: true
+          description: URL for the previous page of results (null if this is the first page)
+          example: "/api/v1/jobs?count=20&cursor=eyJjcmVhdGVkX2F0IjoiMjAyNS0wMi0wMVQwMDowMDowMFoiLCJpZCI6ImRlZjQ1NiJ9"
 
     ChartDataResponse:
       type: object
