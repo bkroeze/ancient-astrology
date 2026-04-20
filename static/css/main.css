@@ -904,3 +904,80 @@ main {
         grid-template-columns: 1fr;
     }
 }
+
+/* Job Detail Panel (HTMX inline expansion) */
+.job-detail-row td {
+    padding: 0;
+}
+
+.job-detail-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin: 0.5rem 0;
+}
+
+.job-metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 0 0 1rem 0;
+}
+
+.metadata-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.metadata-item dt {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+}
+
+.metadata-item dd {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: #1e293b;
+}
+
+.job-payload,
+.job-result,
+.job-error {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.job-error {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.job-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.job-actions .btn.disabled,
+.job-actions .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.disabled-form {
+    display: inline;
+}

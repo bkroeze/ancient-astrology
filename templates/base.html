@@ -30,6 +30,10 @@
                 {% if feature_flags.ELECTIONAL_ENABLED %}
                     <a href="{% url 'electional:saved_query_list' %}">Electional</a>
                 {% endif %}
+                {% if user.is_staff %}
+                    <a href="/admin/">Admin</a>
+                    <a href="{% url 'jobs:job_list' %}">Jobs</a>
+                {% endif %}
                 <span>Welcome, {{ user.email }}</span>
                 <form method="post" action="{% url 'account_logout' %}" style="display: inline;">
                     {% csrf_token %}
