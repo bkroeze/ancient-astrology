@@ -1,0 +1,81 @@
+<tr class="job-detail-row">
+  <td colspan="5">
+    <div class="job-detail-panel">
+      {% if error %}
+        <div class="alert alert-error">
+          <p>{{ error }}</p>
+        </div>
+      {% elif job %}
+        <dl class="job-metadata">
+          <div class="metadata-item">
+            <dt>Job ID</dt>
+            <dd>{{ job.job_id }}</dd>
+          </div>
+          <div class="metadata-item">
+            <dt>Type</dt>
+            <dd>{{ job.job_type }}</dd>
+          </div>
+          <div class="metadata-item">
+            <dt>Status</dt>
+            <dd><span class="badge badge-{{ job.status }}">{{ job.status }}</span></dd>
+          </div>
+          {% if job.payload %}
+          <div class="metadata-item">
+            <dt>Payload</dt>
+            <dd><pre class="job-payload">{{ job.payload }}</pre></dd>
+          </div>
+          {% endif %}
+          {% if job.result %}
+          <div class="metadata-item">
+            <dt>Result</dt>
+            <dd><pre class="job-result">{{ job.result }}</pre></dd>
+          </div>
+          {% endif %}
+          {% if job.error %}
+          <div class="metadata-item">
+            <dt>Error</dt>
+            <dd><pre class="job-error">{{ job.error }}</pre></dd>
+          </div>
+          {% endif %}
+          <div class="metadata-item">
+            <dt>Created</dt>
+            <dd>{{ job.created_at }}</dd>
+          </div>
+          {% if job.started_at %}
+          <div class="metadata-item">
+            <dt>Started</dt>
+            <dd>{{ job.started_at }}</dd>
+          </div>
+          {% endif %}
+          {% if job.completed_at %}
+          <div class="metadata-item">
+            <dt>Completed</dt>
+            <dd>{{ job.completed_at }}</dd>
+          </div>
+          {% endif %}
+          <div class="metadata-item">
+            <dt>Updated</dt>
+            <dd>{{ job.updated_at }}</dd>
+          </div>
+        </dl>
+        <div class="job-actions">
+          <a href="{% url 'jobs:job_download' job_id=job.job_id %}"
+             class="btn btn-primary{% if not can_download %} disabled{% endif %}"
+             {% if not can_download %}aria-disabled="true" tabindex="-1"{% endif %}>
+            &#11015; Download
+          </a>
+          <form method="post" action="{% url 'jobs:job_delete' job_id=job.job_id %}" style="display:inline;"
+                {% if not can_delete %}class="disabled-form"{% endif %}>
+            {% csrf_token %}
+            <button type="submit"
+                    class="btn btn-danger{% if not can_delete %} disabled{% endif %}"
+                    {% if not can_delete %}disabled aria-disabled="true"{% endif %}
+                    onclick="return confirm('Delete this job?');">
+              &#128465; Delete
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  </td>
+</tr>

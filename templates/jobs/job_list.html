@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - Ancient Astrology{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Jobs</h1>
+    </div>
+
+    {% if error %}
+        <div class="alert alert-error">
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+
+    <form method="get" class="filter-form">
+        <div class="filter-group">
+            <label for="status">Status:</label>
+            <select name="status" id="status">
+                <option value="">All</option>
+                <option value="pending" {% if filters.status == "pending" %}selected{% endif %}>Pending</option>
+                <option value="in_process" {% if filters.status == "in_process" %}selected{% endif %}>In Process</option>
+                <option value="complete" {% if filters.status == "complete" %}selected{% endif %}>Complete</option>
+                <option value="failed" {% if filters.status == "failed" %}selected{% endif %}>Failed</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="job_type">Job Type:</label>
+            <select name="job_type" id="job_type">
+                <option value="">All</option>
+                <option value="load" {% if filters.job_type == "load" %}selected{% endif %}>Load</option>
+                <option value="query" {% if filters.job_type == "query" %}selected{% endif %}>Query</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="created_after">Created After:</label>
+            <input type="date" name="created_after" id="created_after" value="{{ filters.created_after }}">
+        </div>
+        <div class="filter-group">
+            <label for="created_before">Created Before:</label>
+            <input type="date" name="created_before" id="created_before" value="{{ filters.created_before }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{% url 'jobs:job_list' %}" class="btn btn-secondary">Clear</a>
+    </form>
+
+    {% if jobs %}
+        <table class="job-table">
+            <thead>
+                <tr>
+                    <th>Job ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr hx-get="{% url 'jobs:job_list' %}{{ job.job_id }}/" hx-trigger="click" hx-swap="afterend" class="job-row" style="cursor: pointer;">
+                    <td>{{ job.job_id }}</td>
+                    <td>{{ job.job_type }}</td>
+                    <td><span class="badge badge-{{ job.status }}">{{ job.status }}</span></td>
+                    <td>{{ job.created_at }}</td>
+                    <td>{{ job.updated_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            {% if has_prev %}
+                <a href="?cursor={{ prev_cursor }}{% if filter_qs %}&{{ filter_qs }}{% endif %}">&larr; Previous</a>
+            {% endif %}
+
+            {% if has_next or has_prev %}
+                <span class="page-info">
+                    {% if has_next %}More results available{% endif %}
+                </span>
+            {% endif %}
+
+            {% if has_next %}
+                <a href="?cursor={{ next_cursor }}{% if filter_qs %}&{{ filter_qs }}{% endif %}">Next &rarr;</a>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            {% if error %}
+                <p>Could not load jobs due to an error.</p>
+            {% else %}
+                <p>No jobs found.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
