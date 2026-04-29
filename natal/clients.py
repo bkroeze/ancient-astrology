@@ -290,15 +290,18 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
             api_url,
             params=params,
             timeout=timeout,
-            headers={'Accept': 'application/json'}
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'AncientAstrology/1.0 (https://github.com/bkroeze/ancient-astrology)'
+            }
         )
-        
+
         if not response.ok:
             try:
                 error_detail = response.json().get('error', response.text)
             except ValueError:
                 error_detail = response.text or 'Unknown error'
-            
+
             _log.error(
                 "Geocoding API error: status=%s, detail=%s",
                 response.status_code,
@@ -398,15 +401,18 @@ def reverse_geocode_location(lat: float, lon: float) -> GeocodingResult | None:
             api_url,
             params=params,
             timeout=timeout,
-            headers={'Accept': 'application/json'}
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'AncientAstrology/1.0 (https://github.com/bkroeze/ancient-astrology)'
+            }
         )
-        
+
         if not response.ok:
             try:
                 error_detail = response.json().get('error', response.text)
             except ValueError:
                 error_detail = response.text or 'Unknown error'
-            
+
             _log.error(
                 "Reverse geocoding API error: status=%s, detail=%s",
                 response.status_code,

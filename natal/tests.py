@@ -2660,11 +2660,16 @@ class GeocodingClientTest(TestCase):
         call_args = mock_get.call_args
         called_url = call_args[0][0]
         called_params = call_args[1]['params']
+        called_headers = call_args[1]['headers']
 
         # Should call /api/ with query and limit params
         self.assertIn('/api/', called_url)
         self.assertEqual(called_params['q'], 'Paris')
         self.assertEqual(called_params['limit'], 3)
+
+        # Should include User-Agent header
+        self.assertIn('User-Agent', called_headers)
+        self.assertIn('AncientAstrology', called_headers['User-Agent'])
 
     @patch('natal.clients.requests.get')
     def test_geocode_location_handles_missing_optional_fields(self, mock_get):
@@ -2902,11 +2907,16 @@ class ReverseGeocodingClientTest(TestCase):
         call_args = mock_get.call_args
         called_url = call_args[0][0]
         called_params = call_args[1]['params']
+        called_headers = call_args[1]['headers']
 
         # Should call /reverse endpoint with lat/lon params
         self.assertIn('/reverse', called_url)
         self.assertEqual(called_params['lat'], 40.7128)
         self.assertEqual(called_params['lon'], -74.0060)
+
+        # Should include User-Agent header
+        self.assertIn('User-Agent', called_headers)
+        self.assertIn('AncientAstrology', called_headers['User-Agent'])
 
 
 # =============================================================================
