@@ -60,72 +60,76 @@ class ChartTimeoutError(ChartAPIError):
 class ChartRequest:
     """
     Request parameters for chart generation.
-    
+
+    Matches the GET /chart endpoint parameters per API spec.
+
     Attributes:
         latitude: Geographic latitude (-90 to 90)
         longitude: Geographic longitude (-180 to 180)
-        datetime: Date and time for the chart (UTC)
-        format: Output format ('svg', 'png', 'json')
-        name: Optional name for the chart
+        datetime: Date and time for the chart (optional, defaults to current time)
+        format: Output format ('svg' or 'png', defaults to 'png' per API spec)
     """
     latitude: float
     longitude: float
-    datetime: datetime
+    datetime: datetime | None = None
     format: str = 'svg'
-    name: str | None = None
 
 
 def generate_chart(request: ChartRequest) -> dict[str, Any]:
     """
     Generate a natal chart by calling the Astro Clock API.
-    
+
+    Calls GET /chart endpoint which returns chart as PNG or SVG image.
+
     Args:
         request: ChartRequest containing chart parameters
-        
+
     Returns:
-        dict: API response containing chart data
-        
+        dict: API response containing chart data with 'chart' key holding
+              the raw response content (SVG XML or PNG bytes)
+
     Raises:
         ChartAPIError: If the API returns an error response
         ChartTimeoutError: If the API request times out
     """
     import logging
     _log = logging.getLogger(__name__)
-    
+
     # Get API configuration
     base_url = settings.ASTRO_CLOCK_SERVER
     timeout = getattr(settings, 'CHART_API_TIMEOUT', 30)
-    
-    # Build request payload
-    payload = {
-        'latitude': request.latitude,
-        'longitude': request.longitude,
-        'datetime': request.datetime.isoformat(),
+
+    # Build request query parameters (per API spec)
+    params = {
+        'lat': request.latitude,
+        'lon': request.longitude,
         'format': request.format,
     }
-    if request.name:
-        payload['name'] = request.name
-    
+
+    # Add optional time parameter if provided
+    if request.datetime:
+        params['time'] = request.datetime.isoformat()
+
     # Log the API call
     _log.info(
-        "Generating chart: lat=%s, lon=%s, datetime=%s, format=%s",
-        request.latitude, 
-        request.longitude, 
-        request.datetime.isoformat(),
+        "Generating chart: lat=%s, lon=%s, time=%s, format=%s",
+        request.latitude,
+        request.longitude,
+        params.get('time', 'current'),
         request.format
     )
-    
-    # Build API URL
-    api_url = urljoin(base_url.rstrip('/') + '/', 'api/chart/generate')
-    
+
+    # Build API URL - per spec: GET /chart
+    api_url = urljoin(base_url.rstrip('/') + '/', 'chart')
+
     try:
-        response = requests.post(
+        response = requests.get(
             api_url,
-            json=payload,
+            params=params,
             timeout=timeout,
-            headers={'Content-Type': 'application/json'}
+            headers={'Accept': 'image/svg+xml, image/png, application/json'}
         )
-        
+
         # Handle non-success responses
         if not response.ok:
             try:
@@ -133,7 +137,7 @@ def generate_chart(request: ChartRequest) -> dict[str, Any]:
                 error_message = error_data.get('error', error_data.get('message', 'Unknown error'))
             except ValueError:
                 error_message = response.text or 'Unknown error'
-            
+
             _log.error(
                 "Chart API error: status=%s, message=%s",
                 response.status_code,
@@ -144,12 +148,24 @@ def generate_chart(request: ChartRequest) -> dict[str, Any]:
                 status_code=response.status_code,
                 response_data=error_data if 'error_data' in locals() else None
             )
-        
-        # Return successful response
-        result = response.json()
-        _log.info("Chart generated successfully")
+
+        # Return chart data based on content type
+        content_type = response.headers.get('Content-Type', '')
+        if 'image/svg+xml' in content_type:
+            result = {'chart': response.text, 'format': 'svg'}
+        elif 'image/png' in content_type:
+            import base64
+            result = {
+                'chart': f"data:image/png;base64,{base64.b64encode(response.content).decode()}",
+                'format': 'png'
+            }
+        else:
+            # Fallback for JSON response
+            result = response.json()
+
+        _log.info("Chart generated successfully: format=%s", result.get('format', 'unknown'))
         return result
-        
+
     except requests.Timeout:
         _log.error("Chart API timed out after %s seconds", timeout)
         raise ChartTimeoutError(

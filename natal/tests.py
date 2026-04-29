@@ -992,25 +992,21 @@ class ChartClientTest(TestCase):
             latitude=40.7128,
             longitude=-74.0060,
             datetime=dt,
-            format='svg',
-            name='Test Chart'
+            format='svg'
         )
         self.assertEqual(request.latitude, 40.7128)
         self.assertEqual(request.longitude, -74.0060)
         self.assertEqual(request.datetime, dt)
         self.assertEqual(request.format, 'svg')
-        self.assertEqual(request.name, 'Test Chart')
 
     def test_chart_request_defaults(self):
         """ChartRequest has correct default values."""
-        dt = datetime(1990, 6, 15, 12, 0, 0)
         request = ChartRequest(
             latitude=40.7128,
-            longitude=-74.0060,
-            datetime=dt
+            longitude=-74.0060
         )
         self.assertEqual(request.format, 'svg')
-        self.assertIsNone(request.name)
+        self.assertIsNone(request.datetime)
 
     def test_chart_api_error_attributes(self):
         """ChartAPIError stores error information correctly."""
@@ -1036,16 +1032,14 @@ class ChartClientTest(TestCase):
         self.assertIsNone(error.status_code)
         self.assertEqual(error.error_message, "Chart generation timed out")
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_success(self, mock_post):
-        """generate_chart returns chart data on success."""
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_success_svg(self, mock_get):
+        """generate_chart returns SVG chart data on success."""
         mock_response = MagicMock()
         mock_response.ok = True
-        mock_response.json.return_value = {
-            'chart': 'svg_data_here',
-            'format': 'svg'
-        }
-        mock_post.return_value = mock_response
+        mock_response.headers = {'Content-Type': 'image/svg+xml'}
+        mock_response.text = '<svg>chart_content</svg>'
+        mock_get.return_value = mock_response
 
         request = ChartRequest(
             latitude=40.7128,
@@ -1055,39 +1049,66 @@ class ChartClientTest(TestCase):
         )
         result = generate_chart(request)
 
-        self.assertEqual(result['chart'], 'svg_data_here')
+        self.assertEqual(result['chart'], '<svg>chart_content</svg>')
         self.assertEqual(result['format'], 'svg')
-        mock_post.assert_called_once()
+        mock_get.assert_called_once()
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_with_name(self, mock_post):
-        """generate_chart includes name in request payload."""
+        # Verify correct endpoint and params
+        call_args = mock_get.call_args
+        self.assertIn('/chart', call_args[0][0])
+        self.assertEqual(call_args[1]['params']['lat'], 40.7128)
+        self.assertEqual(call_args[1]['params']['lon'], -74.0060)
+        self.assertEqual(call_args[1]['params']['format'], 'svg')
+
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_success_png(self, mock_get):
+        """generate_chart returns PNG chart data on success."""
         mock_response = MagicMock()
         mock_response.ok = True
-        mock_response.json.return_value = {'chart': 'data', 'format': 'svg'}
-        mock_post.return_value = mock_response
+        mock_response.headers = {'Content-Type': 'image/png'}
+        mock_response.content = b'fake_png_bytes'
+        mock_get.return_value = mock_response
 
         request = ChartRequest(
             latitude=40.7128,
             longitude=-74.0060,
             datetime=datetime(1990, 6, 15, 12, 0, 0),
-            format='svg',
-            name='My Chart'
+            format='png'
         )
-        generate_chart(request)
+        result = generate_chart(request)
 
-        # Verify the name was included in the call
-        call_kwargs = mock_post.call_args[1]
-        self.assertEqual(call_kwargs['json']['name'], 'My Chart')
+        self.assertIn('data:image/png;base64', result['chart'])
+        self.assertEqual(result['format'], 'png')
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_api_error(self, mock_post):
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_without_datetime(self, mock_get):
+        """generate_chart works without datetime (uses current time)."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.headers = {'Content-Type': 'image/svg+xml'}
+        mock_response.text = '<svg>chart</svg>'
+        mock_get.return_value = mock_response
+
+        request = ChartRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=None,
+            format='svg'
+        )
+        result = generate_chart(request)
+
+        # Should not include 'time' param when datetime is None
+        call_args = mock_get.call_args
+        self.assertNotIn('time', call_args[1]['params'])
+
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_api_error(self, mock_get):
         """generate_chart raises ChartAPIError on API error."""
         mock_response = MagicMock()
         mock_response.ok = False
         mock_response.status_code = 400
         mock_response.json.return_value = {'error': 'Invalid coordinates'}
-        mock_post.return_value = mock_response
+        mock_get.return_value = mock_response
 
         request = ChartRequest(
             latitude=40.7128,
@@ -1102,11 +1123,11 @@ class ChartClientTest(TestCase):
         self.assertEqual(context.exception.status_code, 400)
         self.assertEqual(context.exception.error_message, 'Invalid coordinates')
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_timeout(self, mock_post):
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_timeout(self, mock_get):
         """generate_chart raises ChartTimeoutError on timeout."""
         import requests
-        mock_post.side_effect = requests.Timeout()
+        mock_get.side_effect = requests.Timeout()
 
         request = ChartRequest(
             latitude=40.7128,
@@ -1118,11 +1139,11 @@ class ChartClientTest(TestCase):
         with self.assertRaises(ChartTimeoutError):
             generate_chart(request)
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_connection_error(self, mock_post):
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_connection_error(self, mock_get):
         """generate_chart raises ChartAPIError on connection error."""
         import requests
-        mock_post.side_effect = requests.ConnectionError("Connection refused")
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
 
         request = ChartRequest(
             latitude=40.7128,
