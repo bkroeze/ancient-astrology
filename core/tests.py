@@ -396,3 +396,380 @@ class HomeViewChartOfNowTest(TestCase):
         self.assertContains(response, 'hx-get="/chart-of-now/"')
         self.assertContains(response, 'hx-target="#chart-of-now-widget"')
         self.assertContains(response, 'hx-swap="innerHTML"')
+
+
+# =============================================================================
+# ONBOARDING WIZARD TESTS
+# =============================================================================
+
+class OnboardingWizardTest(TestCase):
+    """Test the onboarding wizard flow."""
+
+    def setUp(self):
+        """Set up test users and client."""
+        self.client = Client()
+        self.user_without_place = User.objects.create_user(
+            username='noplaceuser',
+            email='noplace@example.com',
+            password='testpass123'
+        )
+        from allauth.account.models import EmailAddress
+        EmailAddress.objects.create(
+            user=self.user_without_place,
+            email=self.user_without_place.email,
+            verified=True,
+            primary=True
+        )
+
+    def test_home_shows_wizard_for_user_without_place(self):
+        """Home page shows wizard for authenticated user without default_place."""
+        self.client.login(email='noplace@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # Should show wizard
+        self.assertContains(response, 'id="onboarding-wizard"')
+        self.assertContains(response, 'wizard_step1')
+        self.assertIn('show_wizard', response.context)
+        self.assertTrue(response.context['show_wizard'])
+
+    def test_home_no_wizard_for_user_with_place(self):
+        """Home page shows chart, not wizard, for user with default_place."""
+        from natal.models import Place
+        from decimal import Decimal
+
+        # Create place and assign to user
+        place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.7128'),
+            longitude=Decimal('-74.0060'),
+            timezone='America/New_York',
+            created_by=self.user_without_place,
+        )
+        self.user_without_place.default_place = place
+        self.user_without_place.save()
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # Should NOT show wizard
+        self.assertNotContains(response, 'id="onboarding-wizard"')
+        # Should show chart section
+        self.assertContains(response, 'Chart of Now')
+
+    def test_home_no_wizard_for_dismissed_user(self):
+        """Home page shows no wizard for user who dismissed it."""
+        from django.utils import timezone
+
+        # Mark wizard as dismissed
+        self.user_without_place.onboarding_dismissed_at = timezone.now()
+        self.user_without_place.save()
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # Should NOT show wizard
+        self.assertNotContains(response, 'id="onboarding-wizard"')
+
+    def test_home_no_wizard_for_anonymous_user(self):
+        """Home page shows no wizard for anonymous users."""
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        # Should NOT show wizard
+        self.assertNotContains(response, 'id="onboarding-wizard"')
+
+    def test_wizard_skip_sets_dismissed_at(self):
+        """Skipping wizard sets onboarding_dismissed_at."""
+        from django.utils import timezone
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        # Skip the wizard
+        response = self.client.post(reverse('core:wizard_skip'))
+
+        self.assertEqual(response.status_code, 200)
+        # Verify user was updated
+        self.user_without_place.refresh_from_db()
+        self.assertIsNotNone(self.user_without_place.onboarding_dismissed_at)
+        self.assertLess(
+            (timezone.now() - self.user_without_place.onboarding_dismissed_at).total_seconds(),
+            5  # Should be very recent
+        )
+
+    def test_wizard_skip_redirects_to_empty_if_no_place(self):
+        """Skip without place returns empty chart widget."""
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(reverse('core:wizard_skip'))
+
+        self.assertEqual(response.status_code, 200)
+        # Should return empty placeholder
+        self.assertContains(response, 'chart-placeholder')
+
+    @patch('core.wizard.generate_chart')
+    def test_wizard_skip_with_place_returns_chart(self, mock_generate):
+        """Skip with place set returns chart-of-now partial."""
+        from natal.models import Place
+        from decimal import Decimal
+
+        # Create place and assign to user
+        place = Place.objects.create(
+            name='New York',
+            latitude=Decimal('40.7128'),
+            longitude=Decimal('-74.0060'),
+            timezone='America/New_York',
+            created_by=self.user_without_place,
+        )
+        self.user_without_place.default_place = place
+        self.user_without_place.save()
+
+        mock_generate.return_value = {'chart': '<svg>test</svg>'}
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+        response = self.client.post(reverse('core:wizard_skip'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<svg>test</svg>')
+
+    def test_wizard_step1_requires_login(self):
+        """Wizard step 1 requires authentication."""
+        response = self.client.get(reverse('core:wizard_step1'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_wizard_step2_requires_login(self):
+        """Wizard step 2 requires authentication."""
+        response = self.client.get(reverse('core:wizard_step2'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_wizard_step1_submit_requires_login(self):
+        """Wizard step 1 submit requires authentication."""
+        response = self.client.post(reverse('core:wizard_step1_submit'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_wizard_step2_submit_requires_login(self):
+        """Wizard step 2 submit requires authentication."""
+        response = self.client.post(reverse('core:wizard_step2_submit'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_wizard_step1_submit_with_search_data(self):
+        """Step 1 submit with search data creates Place and sets default_place."""
+        from natal.models import Place
+        from decimal import Decimal
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step1_submit'),
+            {
+                'location_name': 'London',
+                'latitude': '51.5074',
+                'longitude': '-0.1278',
+                'timezone': 'Europe/London',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify Place was created
+        self.assertTrue(Place.objects.filter(name='London').exists())
+        place = Place.objects.get(name='London')
+        self.assertEqual(place.latitude, Decimal('51.5074'))
+        self.assertEqual(place.longitude, Decimal('-0.1278'))
+        self.assertEqual(place.timezone, 'Europe/London')
+        self.assertEqual(place.created_by, self.user_without_place)
+
+        # Verify default_place was set
+        self.user_without_place.refresh_from_db()
+        self.assertEqual(self.user_without_place.default_place, place)
+
+    def test_wizard_step1_reuses_existing_place(self):
+        """Step 1 reuses existing Place with same name."""
+        from natal.models import Place
+        from decimal import Decimal
+
+        # Create existing place
+        existing_place = Place.objects.create(
+            name='Paris',
+            latitude=Decimal('48.8566'),
+            longitude=Decimal('2.3522'),
+            timezone='Europe/Paris',
+            created_by=self.user_without_place,
+        )
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step1_submit'),
+            {
+                'location_name': 'Paris',
+                'latitude': '48.8566',
+                'longitude': '2.3522',
+                'timezone': 'Europe/Paris',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Should reuse existing place, not create new one
+        self.assertEqual(Place.objects.filter(name='Paris', created_by=self.user_without_place).count(), 1)
+
+        # Verify default_place was set
+        self.user_without_place.refresh_from_db()
+        self.assertEqual(self.user_without_place.default_place, existing_place)
+
+    def test_wizard_step1_error_missing_coordinates(self):
+        """Step 1 returns error when coordinates are missing."""
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step1_submit'),
+            {
+                'location_name': '',
+                'latitude': '',
+                'longitude': '',
+                'timezone': '',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'select a location')
+
+    def test_wizard_step1_error_missing_timezone(self):
+        """Step 1 returns error when timezone is missing."""
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step1_submit'),
+            {
+                'location_name': 'Test Place',
+                'latitude': '40.7128',
+                'longitude': '-74.0060',
+                'timezone': '',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'timezone')
+
+    @patch('core.wizard.generate_chart')
+    def test_wizard_step2_submit_creates_natal_set(self, mock_generate):
+        """Step 2 submit creates NatalSet and returns chart-of-now."""
+        from natal.models import Place, NatalSet
+        from decimal import Decimal
+
+        # Create place first
+        place = Place.objects.create(
+            name='San Francisco',
+            latitude=Decimal('37.7749'),
+            longitude=Decimal('-122.4194'),
+            timezone='America/Los_Angeles',
+            created_by=self.user_without_place,
+        )
+        self.user_without_place.default_place = place
+        self.user_without_place.save()
+
+        mock_generate.return_value = {'chart': '<svg>test</svg>'}
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step2_submit'),
+            {
+                'birth_datetime': '1990-06-15T12:00',
+                'name': 'My Birth Chart',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify NatalSet was created
+        self.assertTrue(NatalSet.objects.filter(name='My Birth Chart').exists())
+        natal_set = NatalSet.objects.get(name='My Birth Chart')
+        self.assertEqual(natal_set.owner, self.user_without_place)
+        self.assertEqual(natal_set.location_name, 'San Francisco')
+        self.assertEqual(natal_set.latitude, Decimal('37.7749'))
+        self.assertEqual(natal_set.longitude, Decimal('-122.4194'))
+        self.assertEqual(natal_set.timezone, 'America/Los_Angeles')
+
+    @patch('core.wizard.generate_chart')
+    def test_wizard_step2_submit_uses_default_name(self, mock_generate):
+        """Step 2 submit uses default name when none provided."""
+        from natal.models import Place, NatalSet
+        from decimal import Decimal
+
+        place = Place.objects.create(
+            name='Boston',
+            latitude=Decimal('42.3601'),
+            longitude=Decimal('-71.0589'),
+            timezone='America/New_York',
+            created_by=self.user_without_place,
+        )
+        self.user_without_place.default_place = place
+        self.user_without_place.save()
+
+        mock_generate.return_value = {'chart': '<svg>test</svg>'}
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step2_submit'),
+            {
+                'birth_datetime': '1990-06-15T12:00',
+                'name': '',  # Empty name
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify NatalSet was created with default name
+        self.assertTrue(NatalSet.objects.filter(name='My Birth Chart').exists())
+
+    def test_wizard_step2_error_missing_datetime(self):
+        """Step 2 returns error when birth_datetime is missing."""
+        from natal.models import Place
+        from decimal import Decimal
+
+        place = Place.objects.create(
+            name='Chicago',
+            latitude=Decimal('41.8781'),
+            longitude=Decimal('-87.6298'),
+            timezone='America/Chicago',
+            created_by=self.user_without_place,
+        )
+        self.user_without_place.default_place = place
+        self.user_without_place.save()
+
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step2_submit'),
+            {
+                'birth_datetime': '',
+                'name': 'Test Chart',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'enter your birth date')
+
+    def test_wizard_step2_error_no_default_place(self):
+        """Step 2 returns error when no default_place is set."""
+        self.client.login(email='noplace@example.com', password='testpass123')
+
+        response = self.client.post(
+            reverse('core:wizard_step2_submit'),
+            {
+                'birth_datetime': '1990-06-15T12:00',
+                'name': 'Test Chart',
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'default location')

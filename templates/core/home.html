@@ -20,6 +20,10 @@
         Refresh Chart
     </button>
 </section>
+{% elif user.is_authenticated and show_wizard %}
+<section id="onboarding-wizard">
+    {% include 'core/wizard_step1.html' %}
+</section>
 {% endif %}
 
 <section class="htmx-demo">
