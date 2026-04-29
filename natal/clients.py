@@ -335,7 +335,16 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
             # Extract optional timezone from extent
             extent = props.get('extent', {})
             timezone = extent.get('timezone') if isinstance(extent, dict) else None
-            
+
+            # Fallback: use timezonefinder for secondary timezone lookup
+            if not timezone:
+                try:
+                    from timezonefinder import TimezoneFinder
+                    tf = TimezoneFinder()
+                    timezone = tf.timezone_at(lng=longitude, lat=latitude)
+                except Exception:
+                    pass  # timezone will remain None
+
             result = GeocodingResult(
                 name=props.get('name', ''),
                 latitude=latitude,
@@ -450,7 +459,18 @@ def reverse_geocode_location(lat: float, lon: float) -> GeocodingResult | None:
         # Extract optional timezone from extent
         extent = props.get('extent', {})
         timezone = extent.get('timezone') if isinstance(extent, dict) else None
-        
+
+        # Fallback: use timezonefinder for secondary timezone lookup
+        if not timezone:
+            try:
+                from timezonefinder import TimezoneFinder
+                tf = TimezoneFinder()
+                timezone = tf.timezone_at(lng=lon, lat=lat)
+                if timezone:
+                    _log.info("Timezone resolved via timezonefinder: %s", timezone)
+            except Exception as e:
+                _log.warning("Timezone lookup failed: %s", str(e))
+
         # Build a readable name from components
         name_parts = []
         if props.get('name'):

@@ -2918,6 +2918,39 @@ class ReverseGeocodingClientTest(TestCase):
         self.assertIn('User-Agent', called_headers)
         self.assertIn('AncientAstrology', called_headers['User-Agent'])
 
+    @patch('natal.clients.requests.get')
+    @patch('timezonefinder.TimezoneFinder.timezone_at')
+    def test_reverse_geocode_fallback_to_timezonefinder(self, mock_tf_at, mock_get):
+        """reverse_geocode_location falls back to timezonefinder when Photon has no timezone."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Test Location',
+                        'country': 'USA',
+                        'state': 'California',
+                        # No extent.timezone
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [-122.4194, 37.7749]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+        mock_tf_at.return_value = 'America/Los_Angeles'
+
+        result = reverse_geocode_location(lat=37.7749, lon=-122.4194)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.timezone, 'America/Los_Angeles')
+        mock_tf_at.assert_called_once_with(lng=-122.4194, lat=37.7749)
+
 
 # =============================================================================
 # LOCATION SEARCH API TESTS
