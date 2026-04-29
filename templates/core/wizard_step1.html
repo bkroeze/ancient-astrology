@@ -1,0 +1,273 @@
+{# Partial template for onboarding wizard step 1: location input #}
+{# This is a standalone HTML fragment for HTMX consumption #}
+
+{% load static %}
+
+<div class="onboarding-wizard" id="onboarding-wizard">
+    <div class="wizard-header">
+        <h2>Welcome to Ancient Astrology</h2>
+        <p class="wizard-subtitle">Step 1 of 2: Set your location</p>
+    </div>
+
+    <div class="wizard-content">
+        <p class="wizard-description">
+            To personalize your astrological experience, we need to know your location. 
+            This will be used to calculate accurate charts for your position on Earth.
+        </p>
+
+        {% if error %}
+        <div class="alert alert-error wizard-error">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div id="wizard-geolocation-error" class="alert alert-error wizard-error" style="display: none;">
+            Location unavailable — please search manually below.
+        </div>
+
+        <form method="post"
+              action="{% url 'core:wizard_step1_submit' %}"
+              hx-post="{% url 'core:wizard_step1_submit' %}"
+              hx-target="#onboarding-wizard"
+              hx-swap="innerHTML">
+            {% csrf_token %}
+
+            <!-- Hidden fields populated by geolocation or search -->
+            <input type="hidden" id="wizard-lat" name="latitude" value="">
+            <input type="hidden" id="wizard-lon" name="longitude" value="">
+            <input type="hidden" id="wizard-timezone" name="timezone" value="">
+            <input type="hidden" id="wizard-location-name" name="location_name" value="">
+
+            <div class="wizard-section">
+                <button type="button" 
+                        class="btn btn-primary btn-large wizard-geolocation-btn"
+                        id="wizard-geolocation-btn">
+                    <span class="btn-text">Use my current location</span>
+                    <span class="btn-loading" style="display: none;">Detecting location...</span>
+                </button>
+                <p class="wizard-hint">
+                    We'll use your device's GPS to automatically detect your location.
+                </p>
+            </div>
+
+            <div class="wizard-divider">
+                <span>or</span>
+            </div>
+
+            <div class="wizard-section location-search-section">
+                <label for="wizard-location-search">Search for a location</label>
+                <div class="wizard-search-wrapper">
+                    <input type="text" 
+                           id="wizard-location-search" 
+                           class="form-control"
+                           placeholder="e.g., New York, London, Tokyo..."
+                           autocomplete="off"
+                           spellcheck="false">
+                </div>
+                <p class="wizard-hint">
+                    Type to search cities, landmarks, or addresses.
+                </p>
+            </div>
+        </form>
+    </div>
+
+    <div class="wizard-footer">
+        <form method="post"
+              action="{% url 'core:wizard_skip' %}"
+              hx-post="{% url 'core:wizard_skip' %}"
+              hx-target="#onboarding-wizard"
+              hx-swap="innerHTML"
+              class="wizard-skip-form">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link wizard-skip-btn">
+                Skip for now
+            </button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/location-autocomplete.js' %}"></script>
+<script src="{% static 'js/onboarding-wizard.js' %}"></script>
+
+<style>
+.onboarding-wizard {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+.wizard-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.wizard-header h2 {
+    margin: 0 0 0.5rem 0;
+    color: #1a1a2e;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.wizard-subtitle {
+    color: #666;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.wizard-content {
+    margin-bottom: 1.5rem;
+}
+
+.wizard-description {
+    text-align: center;
+    color: #444;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.wizard-error {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #fee;
+    border: 1px solid #fcc;
+    border-radius: 6px;
+    color: #c33;
+}
+
+.wizard-section {
+    margin-bottom: 1.5rem;
+}
+
+.wizard-geolocation-btn {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.wizard-geolocation-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.wizard-geolocation-btn.loading .btn-text {
+    display: none;
+}
+
+.wizard-geolocation-btn.loading .btn-loading {
+    display: inline !important;
+}
+
+.wizard-hint {
+    text-align: center;
+    color: #888;
+    font-size: 0.8125rem;
+    margin: 0.5rem 0 0 0;
+}
+
+.wizard-divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+    color: #888;
+}
+
+.wizard-divider::before,
+.wizard-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #ddd;
+}
+
+.wizard-divider span {
+    padding: 0 1rem;
+    font-size: 0.875rem;
+}
+
+.location-search-section label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.wizard-search-wrapper {
+    position: relative;
+}
+
+#wizard-location-search {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#wizard-location-search:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+
+.wizard-footer {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.wizard-skip-btn {
+    color: #666;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.wizard-skip-btn:hover {
+    color: #333;
+}
+
+/* Autocomplete dropdown positioning within wizard */
+.onboarding-wizard .location-autocomplete-results {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 250px;
+    overflow-y: auto;
+    display: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.onboarding-wizard .location-autocomplete-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.15s ease;
+}
+
+.onboarding-wizard .location-autocomplete-option:last-child {
+    border-bottom: none;
+}
+
+.onboarding-wizard .location-autocomplete-option:hover,
+.onboarding-wizard .location-autocomplete-option.selected {
+    background-color: #e3f2fd;
+}
+
+.location-search-section {
+    position: relative;
+}
+</style>
