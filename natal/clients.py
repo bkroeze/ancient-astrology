@@ -245,6 +245,19 @@ class GeocodingResult:
     state: str | None
 
 
+@dataclass
+class ReverseGeocodingRequest:
+    """
+    Request parameters for reverse geocoding.
+    
+    Attributes:
+        latitude: Latitude in decimal degrees (-90 to 90)
+        longitude: Longitude in decimal degrees (-180 to 180)
+    """
+    latitude: float
+    longitude: float
+
+
 def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
     """
     Search for locations by name using the Photon geocoding API.
@@ -349,6 +362,132 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
         )
     except requests.RequestException as e:
         _log.error("Geocoding API request failed: %s", str(e))
+        raise GeocodingError(message=str(e))
+
+
+def reverse_geocode_location(lat: float, lon: float) -> GeocodingResult | None:
+    """
+    Reverse geocode latitude/longitude to a location using the Photon API.
+    
+    Args:
+        lat: Latitude in decimal degrees (-90 to 90)
+        lon: Longitude in decimal degrees (-180 to 180)
+        
+    Returns:
+        GeocodingResult | None: The location result, or None if no results found
+        
+    Raises:
+        GeocodingError: If the API returns an error or request fails
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+    
+    base_url = getattr(settings, 'PHOTON_API_URL', 'https://photon.komoot.io')
+    timeout = getattr(settings, 'GEOCODING_TIMEOUT', 10)
+    
+    api_url = f"{base_url.rstrip('/')}/reverse"
+    params = {
+        'lat': lat,
+        'lon': lon,
+    }
+    
+    _log.info("Reverse geocoding: lat=%s, lon=%s", lat, lon)
+    
+    try:
+        response = requests.get(
+            api_url,
+            params=params,
+            timeout=timeout,
+            headers={'Accept': 'application/json'}
+        )
+        
+        if not response.ok:
+            try:
+                error_detail = response.json().get('error', response.text)
+            except ValueError:
+                error_detail = response.text or 'Unknown error'
+            
+            _log.error(
+                "Reverse geocoding API error: status=%s, detail=%s",
+                response.status_code,
+                error_detail
+            )
+            raise GeocodingError(
+                message=f"Reverse geocoding failed: {error_detail}",
+                status_code=response.status_code,
+            )
+        
+        try:
+            data = response.json()
+        except ValueError as e:
+            _log.error("Reverse geocoding API returned malformed JSON: %s", str(e))
+            raise GeocodingError(
+                message=f"Invalid JSON response from geocoding service: {str(e)}",
+            )
+        
+        # Photon returns GeoJSON FeatureCollection
+        features = data.get('features', [])
+        if not features:
+            _log.info("Reverse geocoding: no results found")
+            return None
+        
+        # Take the first (best) result
+        feature = features[0]
+        props = feature.get('properties', {})
+        geometry = feature.get('geometry', {})
+        coords = geometry.get('coordinates', [])
+        
+        # coords is [longitude, latitude]
+        longitude = coords[0] if len(coords) > 0 else lon
+        latitude = coords[1] if len(coords) > 1 else lat
+        
+        # Extract optional timezone from extent
+        extent = props.get('extent', {})
+        timezone = extent.get('timezone') if isinstance(extent, dict) else None
+        
+        # Build a readable name from components
+        name_parts = []
+        if props.get('name'):
+            name_parts.append(props.get('name'))
+        if props.get('street'):
+            name_parts.append(props.get('street'))
+        if props.get('city'):
+            name_parts.append(props.get('city'))
+        if props.get('state'):
+            name_parts.append(props.get('state'))
+        if props.get('country'):
+            name_parts.append(props.get('country'))
+        
+        # Fallback to coordinates if no name
+        name = ', '.join(name_parts) if name_parts else f"{lat}, {lon}"
+        
+        result = GeocodingResult(
+            name=name,
+            latitude=latitude,
+            longitude=longitude,
+            timezone=timezone,
+            country=props.get('country'),
+            state=props.get('state'),
+        )
+        
+        _log.info(
+            "Reverse geocoding complete: lat=%s, lon=%s, name=%s",
+            lat, lon, name
+        )
+        return result
+        
+    except requests.Timeout:
+        _log.error("Reverse geocoding API timed out after %s seconds", timeout)
+        raise GeocodingError(
+            message=f"Reverse geocoding timed out after {timeout} seconds",
+        )
+    except requests.ConnectionError as e:
+        _log.error("Reverse geocoding API connection error: %s", str(e))
+        raise GeocodingError(
+            message=f"Could not connect to geocoding server: {base_url}",
+        )
+    except requests.RequestException as e:
+        _log.error("Reverse geocoding API request failed: %s", str(e))
         raise GeocodingError(message=str(e))
 
 

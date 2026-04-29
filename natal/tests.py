@@ -2437,6 +2437,7 @@ from natal.clients import (
     GeocodingError,
     GeocodingRequest,
     GeocodingResult,
+    reverse_geocode_location,
     geocode_location,
 )
 
@@ -2759,6 +2760,153 @@ class GeocodingClientTest(TestCase):
             geocode_location(request)
 
         self.assertIsNone(context.exception.status_code)
+
+
+# =============================================================================
+# REVERSE GEOCODING TESTS
+# =============================================================================
+
+class ReverseGeocodingClientTest(TestCase):
+    """Tests for the Photon reverse geocoding client."""
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_success(self, mock_get):
+        """reverse_geocode_location returns result on success."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Empire State Building',
+                        'city': 'New York',
+                        'state': 'New York',
+                        'country': 'United States',
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [-73.9857, 40.7484]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        result = reverse_geocode_location(lat=40.7484, lon=-73.9857)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.name, 'Empire State Building, New York, New York, United States')
+        self.assertEqual(result.latitude, 40.7484)
+        self.assertEqual(result.longitude, -73.9857)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_with_timezone(self, mock_get):
+        """reverse_geocode_location extracts timezone from extent."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Berlin',
+                        'country': 'Germany',
+                        'state': None,
+                        'extent': {
+                            'timezone': 'Europe/Berlin'
+                        }
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [13.405, 52.52]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        result = reverse_geocode_location(lat=52.52, lon=13.405)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.timezone, 'Europe/Berlin')
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_empty_results(self, mock_get):
+        """reverse_geocode_location returns None when no results."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        mock_get.return_value = mock_response
+
+        result = reverse_geocode_location(lat=0.0, lon=0.0)
+
+        self.assertIsNone(result)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_api_error(self, mock_get):
+        """reverse_geocode_location raises GeocodingError on API error."""
+        mock_response = MagicMock()
+        mock_response.ok = False
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+        mock_get.return_value = mock_response
+
+        with self.assertRaises(GeocodingError) as context:
+            reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        self.assertEqual(context.exception.status_code, 500)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_timeout(self, mock_get):
+        """reverse_geocode_location raises GeocodingError on timeout."""
+        import requests
+        mock_get.side_effect = requests.Timeout()
+
+        with self.assertRaises(GeocodingError) as context:
+            reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn('timed out', context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_connection_error(self, mock_get):
+        """reverse_geocode_location raises GeocodingError on connection error."""
+        import requests
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
+
+        with self.assertRaises(GeocodingError) as context:
+            reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn('Could not connect', context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_uses_correct_url(self, mock_get):
+        """reverse_geocode_location calls the correct Photon reverse endpoint."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        mock_get.return_value = mock_response
+
+        reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        call_args = mock_get.call_args
+        called_url = call_args[0][0]
+        called_params = call_args[1]['params']
+
+        # Should call /reverse endpoint with lat/lon params
+        self.assertIn('/reverse', called_url)
+        self.assertEqual(called_params['lat'], 40.7128)
+        self.assertEqual(called_params['lon'], -74.0060)
 
 
 # =============================================================================
