@@ -69,6 +69,39 @@ class UserModelTest(TestCase):
         with self.assertRaises(ValidationError):
             user.full_clean()
 
+    def test_onboarding_dismissed_at_field_exists(self):
+        """User model has onboarding_dismissed_at field that defaults to None."""
+        user = User.objects.create_user(
+            username='testuser',
+            email='onboarding@example.com',
+            password='testpass123'
+        )
+        # Field should exist and default to None
+        self.assertIsNone(user.onboarding_dismissed_at)
+
+    def test_onboarding_dismissed_at_can_be_set(self):
+        """onboarding_dismissed_at field can be set and cleared."""
+        from django.utils import timezone
+
+        user = User.objects.create_user(
+            username='testuser',
+            email='onboarding2@example.com',
+            password='testpass123'
+        )
+
+        # Set the field
+        now = timezone.now()
+        user.onboarding_dismissed_at = now
+        user.save()
+        user.refresh_from_db()
+        self.assertEqual(user.onboarding_dismissed_at, now)
+
+        # Clear the field
+        user.onboarding_dismissed_at = None
+        user.save()
+        user.refresh_from_db()
+        self.assertIsNone(user.onboarding_dismissed_at)
+
 
 class AllauthFlowTest(TestCase):
     """Tests for django-allauth local authentication flow."""

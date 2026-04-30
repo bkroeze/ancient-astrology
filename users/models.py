@@ -19,7 +19,12 @@ class User(AbstractUser):
         related_name="default_for_users",
         help_text="Default birth place for this user"
     )
-    
+    onboarding_dismissed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the user dismissed the onboarding wizard"
+    )
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
     

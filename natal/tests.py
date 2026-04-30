@@ -992,25 +992,21 @@ class ChartClientTest(TestCase):
             latitude=40.7128,
             longitude=-74.0060,
             datetime=dt,
-            format='svg',
-            name='Test Chart'
+            format='svg'
         )
         self.assertEqual(request.latitude, 40.7128)
         self.assertEqual(request.longitude, -74.0060)
         self.assertEqual(request.datetime, dt)
         self.assertEqual(request.format, 'svg')
-        self.assertEqual(request.name, 'Test Chart')
 
     def test_chart_request_defaults(self):
         """ChartRequest has correct default values."""
-        dt = datetime(1990, 6, 15, 12, 0, 0)
         request = ChartRequest(
             latitude=40.7128,
-            longitude=-74.0060,
-            datetime=dt
+            longitude=-74.0060
         )
         self.assertEqual(request.format, 'svg')
-        self.assertIsNone(request.name)
+        self.assertIsNone(request.datetime)
 
     def test_chart_api_error_attributes(self):
         """ChartAPIError stores error information correctly."""
@@ -1036,16 +1032,14 @@ class ChartClientTest(TestCase):
         self.assertIsNone(error.status_code)
         self.assertEqual(error.error_message, "Chart generation timed out")
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_success(self, mock_post):
-        """generate_chart returns chart data on success."""
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_success_svg(self, mock_get):
+        """generate_chart returns SVG chart data on success."""
         mock_response = MagicMock()
         mock_response.ok = True
-        mock_response.json.return_value = {
-            'chart': 'svg_data_here',
-            'format': 'svg'
-        }
-        mock_post.return_value = mock_response
+        mock_response.headers = {'Content-Type': 'image/svg+xml'}
+        mock_response.text = '<svg>chart_content</svg>'
+        mock_get.return_value = mock_response
 
         request = ChartRequest(
             latitude=40.7128,
@@ -1055,39 +1049,66 @@ class ChartClientTest(TestCase):
         )
         result = generate_chart(request)
 
-        self.assertEqual(result['chart'], 'svg_data_here')
+        self.assertEqual(result['chart'], '<svg>chart_content</svg>')
         self.assertEqual(result['format'], 'svg')
-        mock_post.assert_called_once()
+        mock_get.assert_called_once()
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_with_name(self, mock_post):
-        """generate_chart includes name in request payload."""
+        # Verify correct endpoint and params
+        call_args = mock_get.call_args
+        self.assertIn('/chart', call_args[0][0])
+        self.assertEqual(call_args[1]['params']['lat'], 40.7128)
+        self.assertEqual(call_args[1]['params']['lon'], -74.0060)
+        self.assertEqual(call_args[1]['params']['format'], 'svg')
+
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_success_png(self, mock_get):
+        """generate_chart returns PNG chart data on success."""
         mock_response = MagicMock()
         mock_response.ok = True
-        mock_response.json.return_value = {'chart': 'data', 'format': 'svg'}
-        mock_post.return_value = mock_response
+        mock_response.headers = {'Content-Type': 'image/png'}
+        mock_response.content = b'fake_png_bytes'
+        mock_get.return_value = mock_response
 
         request = ChartRequest(
             latitude=40.7128,
             longitude=-74.0060,
             datetime=datetime(1990, 6, 15, 12, 0, 0),
-            format='svg',
-            name='My Chart'
+            format='png'
         )
-        generate_chart(request)
+        result = generate_chart(request)
 
-        # Verify the name was included in the call
-        call_kwargs = mock_post.call_args[1]
-        self.assertEqual(call_kwargs['json']['name'], 'My Chart')
+        self.assertIn('data:image/png;base64', result['chart'])
+        self.assertEqual(result['format'], 'png')
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_api_error(self, mock_post):
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_without_datetime(self, mock_get):
+        """generate_chart works without datetime (uses current time)."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.headers = {'Content-Type': 'image/svg+xml'}
+        mock_response.text = '<svg>chart</svg>'
+        mock_get.return_value = mock_response
+
+        request = ChartRequest(
+            latitude=40.7128,
+            longitude=-74.0060,
+            datetime=None,
+            format='svg'
+        )
+        result = generate_chart(request)
+
+        # Should not include 'time' param when datetime is None
+        call_args = mock_get.call_args
+        self.assertNotIn('time', call_args[1]['params'])
+
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_api_error(self, mock_get):
         """generate_chart raises ChartAPIError on API error."""
         mock_response = MagicMock()
         mock_response.ok = False
         mock_response.status_code = 400
         mock_response.json.return_value = {'error': 'Invalid coordinates'}
-        mock_post.return_value = mock_response
+        mock_get.return_value = mock_response
 
         request = ChartRequest(
             latitude=40.7128,
@@ -1102,11 +1123,11 @@ class ChartClientTest(TestCase):
         self.assertEqual(context.exception.status_code, 400)
         self.assertEqual(context.exception.error_message, 'Invalid coordinates')
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_timeout(self, mock_post):
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_timeout(self, mock_get):
         """generate_chart raises ChartTimeoutError on timeout."""
         import requests
-        mock_post.side_effect = requests.Timeout()
+        mock_get.side_effect = requests.Timeout()
 
         request = ChartRequest(
             latitude=40.7128,
@@ -1118,11 +1139,11 @@ class ChartClientTest(TestCase):
         with self.assertRaises(ChartTimeoutError):
             generate_chart(request)
 
-    @patch('natal.clients.requests.post')
-    def test_generate_chart_connection_error(self, mock_post):
+    @patch('natal.clients.requests.get')
+    def test_generate_chart_connection_error(self, mock_get):
         """generate_chart raises ChartAPIError on connection error."""
         import requests
-        mock_post.side_effect = requests.ConnectionError("Connection refused")
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
 
         request = ChartRequest(
             latitude=40.7128,
@@ -2437,6 +2458,7 @@ from natal.clients import (
     GeocodingError,
     GeocodingRequest,
     GeocodingResult,
+    reverse_geocode_location,
     geocode_location,
 )
 
@@ -2659,11 +2681,16 @@ class GeocodingClientTest(TestCase):
         call_args = mock_get.call_args
         called_url = call_args[0][0]
         called_params = call_args[1]['params']
+        called_headers = call_args[1]['headers']
 
         # Should call /api/ with query and limit params
         self.assertIn('/api/', called_url)
         self.assertEqual(called_params['q'], 'Paris')
         self.assertEqual(called_params['limit'], 3)
+
+        # Should include User-Agent header
+        self.assertIn('User-Agent', called_headers)
+        self.assertIn('AncientAstrology', called_headers['User-Agent'])
 
     @patch('natal.clients.requests.get')
     def test_geocode_location_handles_missing_optional_fields(self, mock_get):
@@ -2759,6 +2786,191 @@ class GeocodingClientTest(TestCase):
             geocode_location(request)
 
         self.assertIsNone(context.exception.status_code)
+
+
+# =============================================================================
+# REVERSE GEOCODING TESTS
+# =============================================================================
+
+class ReverseGeocodingClientTest(TestCase):
+    """Tests for the Photon reverse geocoding client."""
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_success(self, mock_get):
+        """reverse_geocode_location returns result on success."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Empire State Building',
+                        'city': 'New York',
+                        'state': 'New York',
+                        'country': 'United States',
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [-73.9857, 40.7484]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        result = reverse_geocode_location(lat=40.7484, lon=-73.9857)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.name, 'Empire State Building, New York, New York, United States')
+        self.assertEqual(result.latitude, 40.7484)
+        self.assertEqual(result.longitude, -73.9857)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_with_timezone(self, mock_get):
+        """reverse_geocode_location extracts timezone from extent."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Berlin',
+                        'country': 'Germany',
+                        'state': None,
+                        'extent': {
+                            'timezone': 'Europe/Berlin'
+                        }
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [13.405, 52.52]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        result = reverse_geocode_location(lat=52.52, lon=13.405)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.timezone, 'Europe/Berlin')
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_empty_results(self, mock_get):
+        """reverse_geocode_location returns None when no results."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        mock_get.return_value = mock_response
+
+        result = reverse_geocode_location(lat=0.0, lon=0.0)
+
+        self.assertIsNone(result)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_api_error(self, mock_get):
+        """reverse_geocode_location raises GeocodingError on API error."""
+        mock_response = MagicMock()
+        mock_response.ok = False
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+        mock_get.return_value = mock_response
+
+        with self.assertRaises(GeocodingError) as context:
+            reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        self.assertEqual(context.exception.status_code, 500)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_timeout(self, mock_get):
+        """reverse_geocode_location raises GeocodingError on timeout."""
+        import requests
+        mock_get.side_effect = requests.Timeout()
+
+        with self.assertRaises(GeocodingError) as context:
+            reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn('timed out', context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_connection_error(self, mock_get):
+        """reverse_geocode_location raises GeocodingError on connection error."""
+        import requests
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
+
+        with self.assertRaises(GeocodingError) as context:
+            reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        self.assertIsNone(context.exception.status_code)
+        self.assertIn('Could not connect', context.exception.error_message)
+
+    @patch('natal.clients.requests.get')
+    def test_reverse_geocode_uses_correct_url(self, mock_get):
+        """reverse_geocode_location calls the correct Photon reverse endpoint."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        mock_get.return_value = mock_response
+
+        reverse_geocode_location(lat=40.7128, lon=-74.0060)
+
+        call_args = mock_get.call_args
+        called_url = call_args[0][0]
+        called_params = call_args[1]['params']
+        called_headers = call_args[1]['headers']
+
+        # Should call /reverse endpoint with lat/lon params
+        self.assertIn('/reverse', called_url)
+        self.assertEqual(called_params['lat'], 40.7128)
+        self.assertEqual(called_params['lon'], -74.0060)
+
+        # Should include User-Agent header
+        self.assertIn('User-Agent', called_headers)
+        self.assertIn('AncientAstrology', called_headers['User-Agent'])
+
+    @patch('natal.clients.requests.get')
+    @patch('timezonefinder.TimezoneFinder.timezone_at')
+    def test_reverse_geocode_fallback_to_timezonefinder(self, mock_tf_at, mock_get):
+        """reverse_geocode_location falls back to timezonefinder when Photon has no timezone."""
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {
+                        'name': 'Test Location',
+                        'country': 'USA',
+                        'state': 'California',
+                        # No extent.timezone
+                    },
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [-122.4194, 37.7749]
+                    }
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+        mock_tf_at.return_value = 'America/Los_Angeles'
+
+        result = reverse_geocode_location(lat=37.7749, lon=-122.4194)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.timezone, 'America/Los_Angeles')
+        mock_tf_at.assert_called_once_with(lng=-122.4194, lat=37.7749)
 
 
 # =============================================================================

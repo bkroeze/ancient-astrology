@@ -60,72 +60,76 @@ class ChartTimeoutError(ChartAPIError):
 class ChartRequest:
     """
     Request parameters for chart generation.
-    
+
+    Matches the GET /chart endpoint parameters per API spec.
+
     Attributes:
         latitude: Geographic latitude (-90 to 90)
         longitude: Geographic longitude (-180 to 180)
-        datetime: Date and time for the chart (UTC)
-        format: Output format ('svg', 'png', 'json')
-        name: Optional name for the chart
+        datetime: Date and time for the chart (optional, defaults to current time)
+        format: Output format ('svg' or 'png', defaults to 'png' per API spec)
     """
     latitude: float
     longitude: float
-    datetime: datetime
+    datetime: datetime | None = None
     format: str = 'svg'
-    name: str | None = None
 
 
 def generate_chart(request: ChartRequest) -> dict[str, Any]:
     """
     Generate a natal chart by calling the Astro Clock API.
-    
+
+    Calls GET /chart endpoint which returns chart as PNG or SVG image.
+
     Args:
         request: ChartRequest containing chart parameters
-        
+
     Returns:
-        dict: API response containing chart data
-        
+        dict: API response containing chart data with 'chart' key holding
+              the raw response content (SVG XML or PNG bytes)
+
     Raises:
         ChartAPIError: If the API returns an error response
         ChartTimeoutError: If the API request times out
     """
     import logging
     _log = logging.getLogger(__name__)
-    
+
     # Get API configuration
     base_url = settings.ASTRO_CLOCK_SERVER
     timeout = getattr(settings, 'CHART_API_TIMEOUT', 30)
-    
-    # Build request payload
-    payload = {
-        'latitude': request.latitude,
-        'longitude': request.longitude,
-        'datetime': request.datetime.isoformat(),
+
+    # Build request query parameters (per API spec)
+    params = {
+        'lat': request.latitude,
+        'lon': request.longitude,
         'format': request.format,
     }
-    if request.name:
-        payload['name'] = request.name
-    
+
+    # Add optional time parameter if provided
+    if request.datetime:
+        params['time'] = request.datetime.isoformat()
+
     # Log the API call
     _log.info(
-        "Generating chart: lat=%s, lon=%s, datetime=%s, format=%s",
-        request.latitude, 
-        request.longitude, 
-        request.datetime.isoformat(),
+        "Generating chart: lat=%s, lon=%s, time=%s, format=%s",
+        request.latitude,
+        request.longitude,
+        params.get('time', 'current'),
         request.format
     )
-    
-    # Build API URL
-    api_url = urljoin(base_url.rstrip('/') + '/', 'api/chart/generate')
-    
+
+    # Build API URL - per spec: GET /chart
+    api_url = urljoin(base_url.rstrip('/') + '/', 'chart')
+
     try:
-        response = requests.post(
+        response = requests.get(
             api_url,
-            json=payload,
+            params=params,
             timeout=timeout,
-            headers={'Content-Type': 'application/json'}
+            headers={'Accept': 'image/svg+xml, image/png, application/json'}
         )
-        
+
         # Handle non-success responses
         if not response.ok:
             try:
@@ -133,7 +137,7 @@ def generate_chart(request: ChartRequest) -> dict[str, Any]:
                 error_message = error_data.get('error', error_data.get('message', 'Unknown error'))
             except ValueError:
                 error_message = response.text or 'Unknown error'
-            
+
             _log.error(
                 "Chart API error: status=%s, message=%s",
                 response.status_code,
@@ -144,12 +148,24 @@ def generate_chart(request: ChartRequest) -> dict[str, Any]:
                 status_code=response.status_code,
                 response_data=error_data if 'error_data' in locals() else None
             )
-        
-        # Return successful response
-        result = response.json()
-        _log.info("Chart generated successfully")
+
+        # Return chart data based on content type
+        content_type = response.headers.get('Content-Type', '')
+        if 'image/svg+xml' in content_type:
+            result = {'chart': response.text, 'format': 'svg'}
+        elif 'image/png' in content_type:
+            import base64
+            result = {
+                'chart': f"data:image/png;base64,{base64.b64encode(response.content).decode()}",
+                'format': 'png'
+            }
+        else:
+            # Fallback for JSON response
+            result = response.json()
+
+        _log.info("Chart generated successfully: format=%s", result.get('format', 'unknown'))
         return result
-        
+
     except requests.Timeout:
         _log.error("Chart API timed out after %s seconds", timeout)
         raise ChartTimeoutError(
@@ -245,6 +261,19 @@ class GeocodingResult:
     state: str | None
 
 
+@dataclass
+class ReverseGeocodingRequest:
+    """
+    Request parameters for reverse geocoding.
+    
+    Attributes:
+        latitude: Latitude in decimal degrees (-90 to 90)
+        longitude: Longitude in decimal degrees (-180 to 180)
+    """
+    latitude: float
+    longitude: float
+
+
 def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
     """
     Search for locations by name using the Photon geocoding API.
@@ -277,15 +306,18 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
             api_url,
             params=params,
             timeout=timeout,
-            headers={'Accept': 'application/json'}
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'AncientAstrology/1.0 (https://github.com/bkroeze/ancient-astrology)'
+            }
         )
-        
+
         if not response.ok:
             try:
                 error_detail = response.json().get('error', response.text)
             except ValueError:
                 error_detail = response.text or 'Unknown error'
-            
+
             _log.error(
                 "Geocoding API error: status=%s, detail=%s",
                 response.status_code,
@@ -319,7 +351,16 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
             # Extract optional timezone from extent
             extent = props.get('extent', {})
             timezone = extent.get('timezone') if isinstance(extent, dict) else None
-            
+
+            # Fallback: use timezonefinder for secondary timezone lookup
+            if not timezone:
+                try:
+                    from timezonefinder import TimezoneFinder
+                    tf = TimezoneFinder()
+                    timezone = tf.timezone_at(lng=longitude, lat=latitude)
+                except Exception:
+                    pass  # timezone will remain None
+
             result = GeocodingResult(
                 name=props.get('name', ''),
                 latitude=latitude,
@@ -349,6 +390,146 @@ def geocode_location(request: GeocodingRequest) -> list[GeocodingResult]:
         )
     except requests.RequestException as e:
         _log.error("Geocoding API request failed: %s", str(e))
+        raise GeocodingError(message=str(e))
+
+
+def reverse_geocode_location(lat: float, lon: float) -> GeocodingResult | None:
+    """
+    Reverse geocode latitude/longitude to a location using the Photon API.
+    
+    Args:
+        lat: Latitude in decimal degrees (-90 to 90)
+        lon: Longitude in decimal degrees (-180 to 180)
+        
+    Returns:
+        GeocodingResult | None: The location result, or None if no results found
+        
+    Raises:
+        GeocodingError: If the API returns an error or request fails
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+    
+    base_url = getattr(settings, 'PHOTON_API_URL', 'https://photon.komoot.io')
+    timeout = getattr(settings, 'GEOCODING_TIMEOUT', 10)
+    
+    api_url = f"{base_url.rstrip('/')}/reverse"
+    params = {
+        'lat': lat,
+        'lon': lon,
+    }
+    
+    _log.info("Reverse geocoding: lat=%s, lon=%s", lat, lon)
+    
+    try:
+        response = requests.get(
+            api_url,
+            params=params,
+            timeout=timeout,
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'AncientAstrology/1.0 (https://github.com/bkroeze/ancient-astrology)'
+            }
+        )
+
+        if not response.ok:
+            try:
+                error_detail = response.json().get('error', response.text)
+            except ValueError:
+                error_detail = response.text or 'Unknown error'
+
+            _log.error(
+                "Reverse geocoding API error: status=%s, detail=%s",
+                response.status_code,
+                error_detail
+            )
+            raise GeocodingError(
+                message=f"Reverse geocoding failed: {error_detail}",
+                status_code=response.status_code,
+            )
+        
+        try:
+            data = response.json()
+        except ValueError as e:
+            _log.error("Reverse geocoding API returned malformed JSON: %s", str(e))
+            raise GeocodingError(
+                message=f"Invalid JSON response from geocoding service: {str(e)}",
+            )
+        
+        # Photon returns GeoJSON FeatureCollection
+        features = data.get('features', [])
+        if not features:
+            _log.info("Reverse geocoding: no results found")
+            return None
+        
+        # Take the first (best) result
+        feature = features[0]
+        props = feature.get('properties', {})
+        geometry = feature.get('geometry', {})
+        coords = geometry.get('coordinates', [])
+        
+        # coords is [longitude, latitude]
+        longitude = coords[0] if len(coords) > 0 else lon
+        latitude = coords[1] if len(coords) > 1 else lat
+        
+        # Extract optional timezone from extent
+        extent = props.get('extent', {})
+        timezone = extent.get('timezone') if isinstance(extent, dict) else None
+
+        # Fallback: use timezonefinder for secondary timezone lookup
+        if not timezone:
+            try:
+                from timezonefinder import TimezoneFinder
+                tf = TimezoneFinder()
+                timezone = tf.timezone_at(lng=lon, lat=lat)
+                if timezone:
+                    _log.info("Timezone resolved via timezonefinder: %s", timezone)
+            except Exception as e:
+                _log.warning("Timezone lookup failed: %s", str(e))
+
+        # Build a readable name from components
+        name_parts = []
+        if props.get('name'):
+            name_parts.append(props.get('name'))
+        if props.get('street'):
+            name_parts.append(props.get('street'))
+        if props.get('city'):
+            name_parts.append(props.get('city'))
+        if props.get('state'):
+            name_parts.append(props.get('state'))
+        if props.get('country'):
+            name_parts.append(props.get('country'))
+        
+        # Fallback to coordinates if no name
+        name = ', '.join(name_parts) if name_parts else f"{lat}, {lon}"
+        
+        result = GeocodingResult(
+            name=name,
+            latitude=latitude,
+            longitude=longitude,
+            timezone=timezone,
+            country=props.get('country'),
+            state=props.get('state'),
+        )
+        
+        _log.info(
+            "Reverse geocoding complete: lat=%s, lon=%s, name=%s",
+            lat, lon, name
+        )
+        return result
+        
+    except requests.Timeout:
+        _log.error("Reverse geocoding API timed out after %s seconds", timeout)
+        raise GeocodingError(
+            message=f"Reverse geocoding timed out after {timeout} seconds",
+        )
+    except requests.ConnectionError as e:
+        _log.error("Reverse geocoding API connection error: %s", str(e))
+        raise GeocodingError(
+            message=f"Could not connect to geocoding server: {base_url}",
+        )
+    except requests.RequestException as e:
+        _log.error("Reverse geocoding API request failed: %s", str(e))
         raise GeocodingError(message=str(e))
 
 

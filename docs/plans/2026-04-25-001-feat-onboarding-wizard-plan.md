@@ -1,7 +1,7 @@
 ---
 title: "feat: Guided Onboarding Wizard"
 type: feat
-status: active
+status: completed
 date: 2026-04-25
 origin: docs/brainstorms/2026-04-24-onboarding-wizard-requirements.md
 ---

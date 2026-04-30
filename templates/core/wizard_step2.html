@@ -1,0 +1,217 @@
+{# Partial template for onboarding wizard step 2: birth datetime input #}
+{# This is a standalone HTML fragment for HTMX consumption #}
+
+<div class="onboarding-wizard" id="onboarding-wizard">
+    <div class="wizard-header">
+        <h2>Welcome to Ancient Astrology</h2>
+        <p class="wizard-subtitle">Step 2 of 2: Your birth information</p>
+    </div>
+
+    <div class="wizard-content">
+        <p class="wizard-description">
+            Now let's capture your birth details to create your personalized natal chart.
+        </p>
+
+        {% if error %}
+        <div class="alert alert-error wizard-error">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="wizard-location-summary">
+            <strong>Location:</strong> {{ place.name }}
+            {% if timezone %}
+            <span class="timezone-badge">{{ timezone }}</span>
+            {% endif %}
+        </div>
+
+        <form method="post"
+              action="{% url 'core:wizard_step2_submit' %}"
+              hx-post="{% url 'core:wizard_step2_submit' %}"
+              hx-target="#onboarding-wizard"
+              hx-swap="innerHTML"
+              class="wizard-form">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="wizard-birth-datetime">Birth Date & Time *</label>
+                <input type="datetime-local" 
+                       id="wizard-birth-datetime" 
+                       name="birth_datetime"
+                       class="form-control"
+                       required>
+                <p class="field-hint">
+                    Enter your birth date and time as accurately as possible.
+                    This will be interpreted in {{ timezone|default:"your local timezone" }}.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label for="wizard-chart-name">Chart Name (optional)</label>
+                <input type="text" 
+                       id="wizard-chart-name" 
+                       name="name"
+                       class="form-control"
+                       placeholder="e.g., My Birth Chart">
+                <p class="field-hint">
+                    A descriptive name for your natal chart. If left blank, we'll use "My Birth Chart".
+                </p>
+            </div>
+
+            <div class="wizard-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    Complete Setup
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="wizard-footer">
+        <form method="post"
+              action="{% url 'core:wizard_skip' %}"
+              hx-post="{% url 'core:wizard_skip' %}"
+              hx-target="#onboarding-wizard"
+              hx-swap="innerHTML"
+              class="wizard-skip-form">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link wizard-skip-btn">
+                Skip this step
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+.onboarding-wizard {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+.wizard-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.wizard-header h2 {
+    margin: 0 0 0.5rem 0;
+    color: #1a1a2e;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.wizard-subtitle {
+    color: #666;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.wizard-content {
+    margin-bottom: 1.5rem;
+}
+
+.wizard-description {
+    text-align: center;
+    color: #444;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.wizard-error {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #fee;
+    border: 1px solid #fcc;
+    border-radius: 6px;
+    color: #c33;
+}
+
+.wizard-location-summary {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.wizard-location-summary strong {
+    color: #1a237e;
+}
+
+.timezone-badge {
+    display: inline-block;
+    background: #4361ee;
+    color: white;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
+
+.wizard-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.wizard-form label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.wizard-form .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.wizard-form .form-control:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+
+.field-hint {
+    margin: 0.375rem 0 0 0;
+    font-size: 0.8125rem;
+    color: #888;
+}
+
+.wizard-actions {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.wizard-actions .btn-primary {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+}
+
+.wizard-footer {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.wizard-skip-btn {
+    color: #666;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.wizard-skip-btn:hover {
+    color: #333;
+}
+</style>

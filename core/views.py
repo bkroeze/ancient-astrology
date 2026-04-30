@@ -8,19 +8,28 @@ from natal.clients import ChartRequest, ChartAPIError, generate_chart
 def home(request):
     """Home page view."""
     context = {}
-    if request.user.is_authenticated and request.user.default_place:
-        try:
-            place = request.user.default_place
-            chart_request = ChartRequest(
-                latitude=float(place.latitude),
-                longitude=float(place.longitude),
-                datetime=timezone.now(),
-                format='svg'
-            )
-            chart = generate_chart(chart_request)
-            context['chart'] = chart
-        except ChartAPIError as e:
-            context['chart_error'] = str(e)
+    user = request.user
+    
+    if user.is_authenticated:
+        # Check if wizard should be shown
+        if user.default_place is None and user.onboarding_dismissed_at is None:
+            # User needs to complete onboarding
+            context['show_wizard'] = True
+        elif user.default_place:
+            # User has default place - show chart-of-now
+            try:
+                place = user.default_place
+                chart_request = ChartRequest(
+                    latitude=float(place.latitude),
+                    longitude=float(place.longitude),
+                    datetime=timezone.now(),
+                    format='svg'
+                )
+                chart = generate_chart(chart_request)
+                context['chart'] = chart
+            except ChartAPIError as e:
+                context['chart_error'] = str(e)
+    
     return render(request, 'core/home.html', context)
 
 
